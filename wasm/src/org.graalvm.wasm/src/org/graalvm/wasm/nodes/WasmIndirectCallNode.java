@@ -40,50 +40,36 @@
  */
 package org.graalvm.wasm.nodes;
 
-import static org.graalvm.wasm.ValueTypes.VOID_TYPE;
+import com.oracle.truffle.api.dsl.Cached;
+import com.oracle.truffle.api.dsl.GenerateUncached;
+import com.oracle.truffle.api.dsl.Specialization;
+import com.oracle.truffle.api.nodes.DirectCallNode;
+import com.oracle.truffle.api.nodes.IndirectCallNode;
+import com.oracle.truffle.api.nodes.Node;
+import org.graalvm.wasm.WasmFunction;
 
-import com.oracle.truffle.api.frame.VirtualFrame;
-import org.graalvm.wasm.WasmCodeEntry;
-import org.graalvm.wasm.WasmContext;
-import org.graalvm.wasm.WasmModule;
-import org.graalvm.wasm.constants.TargetOffset;
+@GenerateUncached
+public abstract class WasmIndirectCallNode extends Node {
 
-// TODO: Make this a singleton instance.
-public final class WasmEmptyNode extends WasmNode {
+    static final int INLINE_CACHE_LIMIT = 5;
 
-    public WasmEmptyNode(WasmModule wasmModule, WasmCodeEntry codeEntry, int byteLength) {
-        super(wasmModule, codeEntry, byteLength);
+    public abstract Object execute(WasmFunction function, Object[] args);
+
+    @Specialization(guards = "function.resolveCallTarget() == callNode.getCallTarget()", limit = "INLINE_CACHE_LIMIT")
+    @SuppressWarnings("unused")
+    static Object doCached(WasmFunction function, Object[] args,
+                    @Cached("create(function.resolveCallTarget())") DirectCallNode callNode) {
+        return callNode.call(args);
     }
 
-    @Override
-    public TargetOffset execute(WasmContext context, VirtualFrame frame) {
-        // A return value of -1 means no branch to be taken.
-        return TargetOffset.MINUS_ONE;
+    @Specialization(replaces = "doCached")
+    static Object doIndirect(WasmFunction function, Object[] args,
+                    @Cached IndirectCallNode indirectCall) {
+        return indirectCall.call(function.resolveCallTarget(), args);
     }
 
-    @Override
-    public byte returnTypeId() {
-        return VOID_TYPE;
-    }
-
-    @Override
-    public int byteConstantLength() {
-        return 0;
-    }
-
-    @Override
-    public int intConstantLength() {
-        return 0;
-    }
-
-    @Override
-    public int longConstantLength() {
-        return 0;
-    }
-
-    @Override
-    public int branchTableLength() {
-        return 0;
+    public static WasmIndirectCallNode create() {
+        return WasmIndirectCallNodeGen.create();
     }
 
 }

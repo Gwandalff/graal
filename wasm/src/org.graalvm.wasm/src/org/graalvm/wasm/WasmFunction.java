@@ -40,8 +40,6 @@
  */
 package org.graalvm.wasm;
 
-import org.graalvm.wasm.nodes.control.WasmIndirectCallNode;
-
 import com.oracle.truffle.api.CallTarget;
 import com.oracle.truffle.api.CompilerDirectives;
 import com.oracle.truffle.api.dsl.Cached;
@@ -49,6 +47,7 @@ import com.oracle.truffle.api.interop.InteropLibrary;
 import com.oracle.truffle.api.interop.TruffleObject;
 import com.oracle.truffle.api.library.ExportLibrary;
 import com.oracle.truffle.api.library.ExportMessage;
+import org.graalvm.wasm.nodes.WasmIndirectCallNode;
 
 @ExportLibrary(InteropLibrary.class)
 public class WasmFunction implements TruffleObject {

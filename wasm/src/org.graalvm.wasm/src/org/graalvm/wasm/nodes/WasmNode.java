@@ -38,70 +38,84 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package org.graalvm.wasm.nodes.control;
+package org.graalvm.wasm.nodes;
 
 import com.oracle.truffle.api.CompilerDirectives.CompilationFinal;
 import com.oracle.truffle.api.frame.VirtualFrame;
-import com.oracle.truffle.api.profiles.ConditionProfile;
+import com.oracle.truffle.api.nodes.Node;
 import org.graalvm.wasm.WasmCodeEntry;
 import org.graalvm.wasm.WasmContext;
 import org.graalvm.wasm.WasmModule;
 import org.graalvm.wasm.constants.TargetOffset;
-import org.graalvm.wasm.nodes.WasmNode;
 
-import static org.graalvm.wasm.WasmTracing.trace;
+public abstract class WasmNode extends Node implements WasmNodeInterface {
+    // TODO: We should not cache the module in the nodes, only the symbol table.
+    private final WasmModule wasmModule;
+    private final WasmCodeEntry codeEntry;
 
-public final class WasmIfNode extends WasmNode {
+    /**
+     * The length (in bytes) of the control structure in the instructions stream, without the
+     * initial opcode and the block return type.
+     */
+    @CompilationFinal private int byteLength;
 
-    @CompilationFinal private final byte returnTypeId;
-    @CompilationFinal private final int initialStackPointer;
-    @Child private WasmNode trueBranch;
-    @Child private WasmNode falseBranch;
-
-    private final ConditionProfile condition = ConditionProfile.createCountingProfile();
-
-    public WasmIfNode(WasmModule wasmModule, WasmCodeEntry codeEntry, WasmNode trueBranch, WasmNode falseBranch, int byteLength, byte returnTypeId, int initialStackPointer) {
-        super(wasmModule, codeEntry, byteLength);
-        this.returnTypeId = returnTypeId;
-        this.initialStackPointer = initialStackPointer;
-        this.trueBranch = trueBranch;
-        this.falseBranch = falseBranch;
+    public WasmNode(WasmModule wasmModule, WasmCodeEntry codeEntry, int byteLength) {
+        this.wasmModule = wasmModule;
+        this.codeEntry = codeEntry;
+        this.byteLength = byteLength;
     }
 
-    @Override
-    public TargetOffset execute(WasmContext context, VirtualFrame frame) {
-        int stackPointer = initialStackPointer - 1;
-        if (condition.profile(popInt(frame, stackPointer) != 0)) {
-            trace("taking if branch");
-            return trueBranch.execute(context, frame);
-        } else {
-            trace("taking else branch");
-            return falseBranch.execute(context, frame);
+    /**
+     * Execute the current node within the given frame and return the branch target.
+     *
+     * @param frame The frame to use for execution.
+     * @return The return value of this method indicates whether a branch is to be executed, in case
+     *         of nested blocks. An offset with value -1 means no branch, whereas a return value n
+     *         greater than or equal to 0 means that the execution engine has to branch n levels up
+     *         the block execution stack.
+     */
+    public abstract TargetOffset execute(WasmContext context, VirtualFrame frame);
+
+    public abstract byte returnTypeId();
+
+    @SuppressWarnings("hiding")
+    protected final void initialize(int byteLength) {
+        this.byteLength = byteLength;
+    }
+
+    protected static final int typeLength(int typeId) {
+        switch (typeId) {
+            case 0x00:
+            case 0x40:
+                return 0;
+            default:
+                return 1;
         }
     }
 
-    @Override
-    public byte returnTypeId() {
-        return returnTypeId;
+    int returnTypeLength() {
+        return typeLength(returnTypeId());
     }
 
     @Override
-    public int byteConstantLength() {
-        return trueBranch.byteConstantLength() + falseBranch.byteConstantLength();
+    public final WasmCodeEntry codeEntry() {
+        return codeEntry;
     }
 
-    @Override
-    public int intConstantLength() {
-        return trueBranch.intConstantLength() + falseBranch.intConstantLength();
+    public final WasmModule module() {
+        return wasmModule;
     }
 
-    @Override
-    public int longConstantLength() {
-        return trueBranch.longConstantLength() + falseBranch.longConstantLength();
+    int byteLength() {
+        return byteLength;
     }
 
-    @Override
-    public int branchTableLength() {
-        return trueBranch.branchTableLength() + falseBranch.branchTableLength();
-    }
+    abstract int byteConstantLength();
+
+    abstract int intConstantLength();
+
+    abstract int longConstantLength();
+
+    abstract int branchTableLength();
+
 }
