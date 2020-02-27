@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,25 +22,17 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-package com.oracle.svm.graal.hotspot.libgraal;
+package com.oracle.svm.core.jdk;
 
-import org.graalvm.compiler.options.OptionDescriptors;
+import com.oracle.svm.core.annotate.Delete;
+import com.oracle.svm.core.annotate.TargetClass;
 
-import com.oracle.svm.hosted.NativeImageGenerator;
+@Delete
+@TargetClass(classNameProvider = Package_jdk_internal_reflect.class, className = "AccessorGenerator")
+public final class Target_jdk_internal_reflect_AccessorGenerator {
+}
 
-/**
- * Only a subset of {@link OptionDescriptors} available on the image class loader class path are
- * applicable to libgraal. Until the {@link NativeImageGenerator} runs on a class path isolated from
- * that used by the image class loader (GR-14237), we need to filter the non-applicable
- * {@link OptionDescriptors}.
- */
-public class OptionDescriptorsFilter {
-
-    public static boolean shouldIncludeDescriptors(Class<? extends OptionDescriptors> clazz) {
-        if (clazz.getName().contains("SVMJUnitRunner")) {
-            // Avoids trying to include com/oracle/mxtool/junit/MxJUnitRequest$Builder
-            return false;
-        }
-        return true;
-    }
+@Delete
+@TargetClass(classNameProvider = Package_jdk_internal_reflect.class, className = "MethodAccessorGenerator")
+final class Target_jdk_internal_reflect_MethodAccessorGenerator {
 }

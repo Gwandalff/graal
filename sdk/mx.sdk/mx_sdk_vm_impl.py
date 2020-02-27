@@ -208,10 +208,10 @@ def _get_component_type_base(c, apply_substitutions=False):
         result = '<jre_base>/lib/'
     elif isinstance(c, mx_sdk.GraalVMSvmMacro):
         svm_component = get_component('svm', stage1=True)
-        result = _get_component_type_base(svm_component, apply_substitutions=apply_substitutions) + '/' + svm_component.dir_name + '/macros/'
+        result = _get_component_type_base(svm_component, apply_substitutions=apply_substitutions) + svm_component.dir_name + '/macros/'
     elif isinstance(c, mx_sdk.GraalVMSvmStaticLib):
         svm_component = get_component('svm')
-        result = _get_component_type_base(svm_component, apply_substitutions=apply_substitutions) + '/' + svm_component.dir_name + '/static-libs/'
+        result = _get_component_type_base(svm_component, apply_substitutions=apply_substitutions) + svm_component.dir_name + '/static-libs/'
     elif isinstance(c, mx_sdk.GraalVmComponent):
         result = '<jdk_base>/'
     else:
@@ -238,6 +238,22 @@ def _get_macros_dir():
     if not svm_component:
         return None
     return _get_component_type_base(svm_component) + svm_component.dir_name + '/macros'
+
+
+def _get_main_component(components):
+    """
+    :type components: list[mx_sdk_vm.GraalVmComponent]
+    :rtype: mx_sdk_vm.GraalVmComponent
+    """
+    assert len(components)
+    main_component = min(components, key=lambda c: (c.priority, not has_svm_launcher(c)))  # we prefer components with low priority and native launchers (note that this is a `min` function)
+    if any([comp for comp in components if comp != main_component and comp.priority == main_component.priority and has_svm_launcher(comp)]):
+        raise mx.abort("""\
+Cannot determine the main component between:
+ - {}
+More than one component has priority {} and native launchers.\
+""".format('\n - '.join(['{} (has native launchers: {})'.format(c.name, has_svm_launcher(c)) for c in components]), main_component.priority))
+    return main_component
 
 
 _src_jdk = mx_sdk_vm.base_jdk()
@@ -662,7 +678,7 @@ class BaseGraalVmLayoutDistribution(_with_metaclass(ABCMeta, mx.LayoutDistributi
             # Register pre-installed components
             components_dir = _get_component_type_base(installer) + installer.dir_name + '/components/'
             for installable_components in installables.values():
-                main_component = min(installable_components, key=lambda c: c.priority)
+                main_component = _get_main_component(installable_components)
                 _add(layout, components_dir + main_component.installable_id + '.component', """string:Bundle-Name={name}
 Bundle-Symbolic-Name={id}
 Bundle-Version={version}
@@ -2049,7 +2065,7 @@ class GraalVmStandaloneComponent(mx.LayoutTARDistribution):  # pylint: disable=t
 
         sorted_suites = sorted(mx.suites(), key=lambda s: s.name)
         metadata = BaseGraalVmLayoutDistribution._get_metadata(sorted_suites)
-        layout.setdefault(base_dir + '/release', []).append('string:' + metadata)
+        layout.setdefault(base_dir + 'release', []).append('string:' + metadata)
 
         for dependency_name, details in component.standalone_dependencies.items():
             dependency_path = details[0]
@@ -2293,14 +2309,14 @@ def mx_register_dynamic_suite_constituents(register_project, register_distributi
 
     # Create installables
     for components in installables.values():
-        main_component = min(components, key=lambda c: c.priority)
+        main_component = _get_main_component(components)
         installable_component = GraalVmInstallableComponent(main_component, extra_components=[c for c in components if c != main_component])
         register_distribution(installable_component)
         with_debuginfo.append(installable_component)
 
     # Create standalones
     for components in installables.values():
-        main_component = min(components, key=lambda c: c.priority)
+        main_component = _get_main_component(components)
         if isinstance(main_component, mx_sdk.GraalVmTruffleComponent) and has_svm_launcher(main_component):
             dependencies = main_component.standalone_dependencies.keys()
             missing_dependencies = [dep for dep in dependencies if not has_component(dep)]

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates.
+ * Copyright (c) 2020, Oracle and/or its affiliates.
  *
  * All rights reserved.
  *
@@ -27,37 +27,36 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package com.oracle.truffle.llvm.runtime.nodes.others;
+#include <stdlib.h>
+#include <stdio.h>
 
-import com.oracle.truffle.api.CompilerAsserts;
-import com.oracle.truffle.api.CompilerDirectives;
-import com.oracle.truffle.api.dsl.CachedContext;
-import com.oracle.truffle.api.dsl.Specialization;
-import com.oracle.truffle.api.utilities.AssumedValue;
-import com.oracle.truffle.llvm.runtime.LLVMContext;
-import com.oracle.truffle.llvm.runtime.LLVMLanguage;
-import com.oracle.truffle.llvm.runtime.global.LLVMGlobal;
-import com.oracle.truffle.llvm.runtime.nodes.api.LLVMNode;
-import com.oracle.truffle.llvm.runtime.pointer.LLVMPointer;
+static void myprint_main_1(char *str) {
+  printf("main print 1: %s", str);
+}
 
-public abstract class LLVMReplaceGlobalVariableStorageNode extends LLVMNode {
+static void myprint_main_2(char *str) {
+  printf("main print 2: %s", str);
+}
 
-    public abstract void execute(LLVMPointer value, LLVMGlobal descriptor);
+void (*myprint)(char *) = myprint_main_1;
 
-    @SuppressWarnings("unused")
-    @Specialization
-    void doReplacee(LLVMPointer value, LLVMGlobal descriptor,
-                    @CachedContext(LLVMLanguage.class) LLVMContext context) {
-        AssumedValue<LLVMPointer>[] globals = context.findGlobalTable(descriptor.getID());
-        synchronized (globals) {
-            CompilerAsserts.partialEvaluationConstant(descriptor);
-            try {
-                int index = descriptor.getIndex();
-                globals[index].set(value);
-            } catch (Exception e) {
-                CompilerDirectives.transferToInterpreter();
-                throw new RuntimeException("Global replace is inconsistent.");
-            }
-        }
-    }
+__attribute__((constructor)) static void beginMain(void) {
+  myprint("ctor Main\n");
+  myprint = myprint_main_2;
+  myprint("ctor Main\n");
+}
+
+/**
+ * Tests that the symbol initialization, symbol resolution and module initialization happens in the right order.
+ * All libraries use the `myprint` function for printing. Modules marked with * define `myprint`, modules with $
+ * override `myprint` in their constructor.
+ * <pre>
+ *   main*$ -----------------------v
+ *    | `----------------------> libA$
+ *    `-----> libB* --> libC*$ ----^
+ * </pre>
+ */
+int main() {
+  printf("Main\n");
+  return 0;
 }

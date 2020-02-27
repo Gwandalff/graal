@@ -343,7 +343,7 @@ suite = {
       ],
       "javaProperties" : {
         "llvm.bin.dir" : "<path:LLVM_TOOLCHAIN>/bin",
-        "llvm.home": "<path:SULONG_HOME>",
+        "org.graalvm.language.llvm.home": "<path:SULONG_HOME>",
       },
       "checkstyle" : "com.oracle.truffle.llvm.runtime",
       "javaCompliance" : "1.8+",
@@ -832,6 +832,7 @@ suite = {
         "SULONG_BOOTSTRAP_TOOLCHAIN",
       ],
       "results": [
+        "dynLink",
         "linker",
         "rpath",
         "reload",
@@ -1012,7 +1013,7 @@ suite = {
         "SULONG_API",
       ],
       "javaProperties" : {
-        "llvm.home": "<sulong_home>",
+        "org.graalvm.language.llvm.home": "<sulong_home>",
       },
       "license" : "BSD-new",
     },

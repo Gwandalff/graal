@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates.
+ * Copyright (c) 2020, Oracle and/or its affiliates.
  *
  * All rights reserved.
  *
@@ -27,34 +27,15 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package com.oracle.truffle.llvm.runtime.nodes.others;
+#include <stdlib.h>
+#include <stdio.h>
 
-import com.oracle.truffle.api.CompilerAsserts;
-import com.oracle.truffle.api.dsl.CachedContext;
-import com.oracle.truffle.api.dsl.Specialization;
-import com.oracle.truffle.api.utilities.AssumedValue;
-import com.oracle.truffle.llvm.runtime.LLVMContext;
-import com.oracle.truffle.llvm.runtime.LLVMLanguage;
-import com.oracle.truffle.llvm.runtime.global.LLVMGlobal;
-import com.oracle.truffle.llvm.runtime.nodes.api.LLVMNode;
-import com.oracle.truffle.llvm.runtime.pointer.LLVMPointer;
+static void myprint_libB(char *str) {
+  printf("libB print: %s", str);
+}
 
-public abstract class LLVMCheckGlobalVariableStorageNode extends LLVMNode {
+void (*myprint)(char *) = myprint_libB;
 
-    public abstract boolean execute(LLVMGlobal descriptor);
-
-    @SuppressWarnings("unused")
-    @Specialization
-    boolean doCheck(LLVMGlobal descriptor,
-                    @CachedContext(LLVMLanguage.class) LLVMContext context) {
-        CompilerAsserts.partialEvaluationConstant(descriptor);
-        int index = descriptor.getIndex();
-        AssumedValue<LLVMPointer>[] globals = context.findGlobalTable(descriptor.getID());
-
-        if (globals[index] == null) {
-            return false;
-        }
-
-        return globals[index].get() == null ? false : true;
-    }
+__attribute__((constructor)) static void beginB(void) {
+  myprint("ctor b\n");
 }
