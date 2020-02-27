@@ -38,181 +38,28 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package org.graalvm.wasm.nodes;
+package org.graalvm.wasm.nodes.control;
 
 import static org.graalvm.wasm.WasmTracing.trace;
-import static org.graalvm.wasm.constants.Instructions.BLOCK;
-import static org.graalvm.wasm.constants.Instructions.BR;
-import static org.graalvm.wasm.constants.Instructions.BR_IF;
-import static org.graalvm.wasm.constants.Instructions.BR_TABLE;
-import static org.graalvm.wasm.constants.Instructions.CALL;
-import static org.graalvm.wasm.constants.Instructions.CALL_INDIRECT;
-import static org.graalvm.wasm.constants.Instructions.DROP;
-import static org.graalvm.wasm.constants.Instructions.ELSE;
-import static org.graalvm.wasm.constants.Instructions.END;
-import static org.graalvm.wasm.constants.Instructions.F32_ABS;
-import static org.graalvm.wasm.constants.Instructions.F32_ADD;
-import static org.graalvm.wasm.constants.Instructions.F32_CEIL;
-import static org.graalvm.wasm.constants.Instructions.F32_CONST;
-import static org.graalvm.wasm.constants.Instructions.F32_CONVERT_I32_S;
-import static org.graalvm.wasm.constants.Instructions.F32_CONVERT_I32_U;
-import static org.graalvm.wasm.constants.Instructions.F32_CONVERT_I64_S;
-import static org.graalvm.wasm.constants.Instructions.F32_CONVERT_I64_U;
-import static org.graalvm.wasm.constants.Instructions.F32_COPYSIGN;
-import static org.graalvm.wasm.constants.Instructions.F32_DEMOTE_F64;
-import static org.graalvm.wasm.constants.Instructions.F32_DIV;
-import static org.graalvm.wasm.constants.Instructions.F32_EQ;
-import static org.graalvm.wasm.constants.Instructions.F32_FLOOR;
-import static org.graalvm.wasm.constants.Instructions.F32_GE;
-import static org.graalvm.wasm.constants.Instructions.F32_GT;
-import static org.graalvm.wasm.constants.Instructions.F32_LE;
-import static org.graalvm.wasm.constants.Instructions.F32_LOAD;
-import static org.graalvm.wasm.constants.Instructions.F32_LT;
-import static org.graalvm.wasm.constants.Instructions.F32_MAX;
-import static org.graalvm.wasm.constants.Instructions.F32_MIN;
-import static org.graalvm.wasm.constants.Instructions.F32_MUL;
-import static org.graalvm.wasm.constants.Instructions.F32_NE;
-import static org.graalvm.wasm.constants.Instructions.F32_NEAREST;
-import static org.graalvm.wasm.constants.Instructions.F32_NEG;
-import static org.graalvm.wasm.constants.Instructions.F32_REINTERPRET_I32;
-import static org.graalvm.wasm.constants.Instructions.F32_SQRT;
-import static org.graalvm.wasm.constants.Instructions.F32_STORE;
-import static org.graalvm.wasm.constants.Instructions.F32_SUB;
-import static org.graalvm.wasm.constants.Instructions.F32_TRUNC;
-import static org.graalvm.wasm.constants.Instructions.F64_ABS;
-import static org.graalvm.wasm.constants.Instructions.F64_ADD;
-import static org.graalvm.wasm.constants.Instructions.F64_CEIL;
-import static org.graalvm.wasm.constants.Instructions.F64_CONST;
-import static org.graalvm.wasm.constants.Instructions.F64_CONVERT_I32_S;
-import static org.graalvm.wasm.constants.Instructions.F64_CONVERT_I32_U;
-import static org.graalvm.wasm.constants.Instructions.F64_CONVERT_I64_S;
-import static org.graalvm.wasm.constants.Instructions.F64_CONVERT_I64_U;
-import static org.graalvm.wasm.constants.Instructions.F64_COPYSIGN;
-import static org.graalvm.wasm.constants.Instructions.F64_DIV;
-import static org.graalvm.wasm.constants.Instructions.F64_EQ;
-import static org.graalvm.wasm.constants.Instructions.F64_FLOOR;
-import static org.graalvm.wasm.constants.Instructions.F64_GE;
-import static org.graalvm.wasm.constants.Instructions.F64_GT;
-import static org.graalvm.wasm.constants.Instructions.F64_LE;
-import static org.graalvm.wasm.constants.Instructions.F64_LOAD;
-import static org.graalvm.wasm.constants.Instructions.F64_LT;
-import static org.graalvm.wasm.constants.Instructions.F64_MAX;
-import static org.graalvm.wasm.constants.Instructions.F64_MIN;
-import static org.graalvm.wasm.constants.Instructions.F64_MUL;
-import static org.graalvm.wasm.constants.Instructions.F64_NE;
-import static org.graalvm.wasm.constants.Instructions.F64_NEAREST;
-import static org.graalvm.wasm.constants.Instructions.F64_NEG;
-import static org.graalvm.wasm.constants.Instructions.F64_PROMOTE_F32;
-import static org.graalvm.wasm.constants.Instructions.F64_REINTERPRET_I64;
-import static org.graalvm.wasm.constants.Instructions.F64_SQRT;
-import static org.graalvm.wasm.constants.Instructions.F64_STORE;
-import static org.graalvm.wasm.constants.Instructions.F64_SUB;
-import static org.graalvm.wasm.constants.Instructions.F64_TRUNC;
-import static org.graalvm.wasm.constants.Instructions.GLOBAL_GET;
-import static org.graalvm.wasm.constants.Instructions.GLOBAL_SET;
-import static org.graalvm.wasm.constants.Instructions.I32_ADD;
-import static org.graalvm.wasm.constants.Instructions.I32_AND;
-import static org.graalvm.wasm.constants.Instructions.I32_CLZ;
-import static org.graalvm.wasm.constants.Instructions.I32_CONST;
-import static org.graalvm.wasm.constants.Instructions.I32_CTZ;
-import static org.graalvm.wasm.constants.Instructions.I32_DIV_S;
-import static org.graalvm.wasm.constants.Instructions.I32_DIV_U;
-import static org.graalvm.wasm.constants.Instructions.I32_EQ;
-import static org.graalvm.wasm.constants.Instructions.I32_EQZ;
-import static org.graalvm.wasm.constants.Instructions.I32_GE_S;
-import static org.graalvm.wasm.constants.Instructions.I32_GE_U;
-import static org.graalvm.wasm.constants.Instructions.I32_GT_S;
-import static org.graalvm.wasm.constants.Instructions.I32_GT_U;
-import static org.graalvm.wasm.constants.Instructions.I32_LE_S;
-import static org.graalvm.wasm.constants.Instructions.I32_LE_U;
-import static org.graalvm.wasm.constants.Instructions.I32_LOAD;
-import static org.graalvm.wasm.constants.Instructions.I32_LOAD16_S;
-import static org.graalvm.wasm.constants.Instructions.I32_LOAD16_U;
-import static org.graalvm.wasm.constants.Instructions.I32_LOAD8_S;
-import static org.graalvm.wasm.constants.Instructions.I32_LOAD8_U;
-import static org.graalvm.wasm.constants.Instructions.I32_LT_S;
-import static org.graalvm.wasm.constants.Instructions.I32_LT_U;
-import static org.graalvm.wasm.constants.Instructions.I32_MUL;
-import static org.graalvm.wasm.constants.Instructions.I32_NE;
-import static org.graalvm.wasm.constants.Instructions.I32_OR;
-import static org.graalvm.wasm.constants.Instructions.I32_POPCNT;
-import static org.graalvm.wasm.constants.Instructions.I32_REINTERPRET_F32;
-import static org.graalvm.wasm.constants.Instructions.I32_REM_S;
-import static org.graalvm.wasm.constants.Instructions.I32_REM_U;
-import static org.graalvm.wasm.constants.Instructions.I32_ROTL;
-import static org.graalvm.wasm.constants.Instructions.I32_ROTR;
-import static org.graalvm.wasm.constants.Instructions.I32_SHL;
-import static org.graalvm.wasm.constants.Instructions.I32_SHR_S;
-import static org.graalvm.wasm.constants.Instructions.I32_SHR_U;
-import static org.graalvm.wasm.constants.Instructions.I32_STORE;
-import static org.graalvm.wasm.constants.Instructions.I32_STORE_16;
-import static org.graalvm.wasm.constants.Instructions.I32_STORE_8;
-import static org.graalvm.wasm.constants.Instructions.I32_SUB;
-import static org.graalvm.wasm.constants.Instructions.I32_TRUNC_F32_S;
-import static org.graalvm.wasm.constants.Instructions.I32_TRUNC_F32_U;
-import static org.graalvm.wasm.constants.Instructions.I32_TRUNC_F64_S;
-import static org.graalvm.wasm.constants.Instructions.I32_TRUNC_F64_U;
-import static org.graalvm.wasm.constants.Instructions.I32_WRAP_I64;
-import static org.graalvm.wasm.constants.Instructions.I32_XOR;
-import static org.graalvm.wasm.constants.Instructions.I64_ADD;
-import static org.graalvm.wasm.constants.Instructions.I64_AND;
-import static org.graalvm.wasm.constants.Instructions.I64_CLZ;
-import static org.graalvm.wasm.constants.Instructions.I64_CONST;
-import static org.graalvm.wasm.constants.Instructions.I64_CTZ;
-import static org.graalvm.wasm.constants.Instructions.I64_DIV_S;
-import static org.graalvm.wasm.constants.Instructions.I64_DIV_U;
-import static org.graalvm.wasm.constants.Instructions.I64_EQ;
-import static org.graalvm.wasm.constants.Instructions.I64_EQZ;
-import static org.graalvm.wasm.constants.Instructions.I64_EXTEND_I32_S;
-import static org.graalvm.wasm.constants.Instructions.I64_EXTEND_I32_U;
-import static org.graalvm.wasm.constants.Instructions.I64_GE_S;
-import static org.graalvm.wasm.constants.Instructions.I64_GE_U;
-import static org.graalvm.wasm.constants.Instructions.I64_GT_S;
-import static org.graalvm.wasm.constants.Instructions.I64_GT_U;
-import static org.graalvm.wasm.constants.Instructions.I64_LE_S;
-import static org.graalvm.wasm.constants.Instructions.I64_LE_U;
-import static org.graalvm.wasm.constants.Instructions.I64_LOAD;
-import static org.graalvm.wasm.constants.Instructions.I64_LOAD16_S;
-import static org.graalvm.wasm.constants.Instructions.I64_LOAD16_U;
-import static org.graalvm.wasm.constants.Instructions.I64_LOAD32_S;
-import static org.graalvm.wasm.constants.Instructions.I64_LOAD32_U;
-import static org.graalvm.wasm.constants.Instructions.I64_LOAD8_S;
-import static org.graalvm.wasm.constants.Instructions.I64_LOAD8_U;
-import static org.graalvm.wasm.constants.Instructions.I64_LT_S;
-import static org.graalvm.wasm.constants.Instructions.I64_LT_U;
-import static org.graalvm.wasm.constants.Instructions.I64_MUL;
-import static org.graalvm.wasm.constants.Instructions.I64_NE;
-import static org.graalvm.wasm.constants.Instructions.I64_OR;
-import static org.graalvm.wasm.constants.Instructions.I64_POPCNT;
-import static org.graalvm.wasm.constants.Instructions.I64_REINTERPRET_F64;
-import static org.graalvm.wasm.constants.Instructions.I64_REM_S;
-import static org.graalvm.wasm.constants.Instructions.I64_REM_U;
-import static org.graalvm.wasm.constants.Instructions.I64_ROTL;
-import static org.graalvm.wasm.constants.Instructions.I64_ROTR;
-import static org.graalvm.wasm.constants.Instructions.I64_SHL;
-import static org.graalvm.wasm.constants.Instructions.I64_SHR_S;
-import static org.graalvm.wasm.constants.Instructions.I64_SHR_U;
-import static org.graalvm.wasm.constants.Instructions.I64_STORE;
-import static org.graalvm.wasm.constants.Instructions.I64_STORE_16;
-import static org.graalvm.wasm.constants.Instructions.I64_STORE_32;
-import static org.graalvm.wasm.constants.Instructions.I64_STORE_8;
-import static org.graalvm.wasm.constants.Instructions.I64_SUB;
-import static org.graalvm.wasm.constants.Instructions.I64_TRUNC_F32_S;
-import static org.graalvm.wasm.constants.Instructions.I64_TRUNC_F32_U;
-import static org.graalvm.wasm.constants.Instructions.I64_TRUNC_F64_S;
-import static org.graalvm.wasm.constants.Instructions.I64_TRUNC_F64_U;
-import static org.graalvm.wasm.constants.Instructions.I64_XOR;
-import static org.graalvm.wasm.constants.Instructions.IF;
-import static org.graalvm.wasm.constants.Instructions.LOCAL_GET;
-import static org.graalvm.wasm.constants.Instructions.LOCAL_SET;
-import static org.graalvm.wasm.constants.Instructions.LOCAL_TEE;
-import static org.graalvm.wasm.constants.Instructions.LOOP;
-import static org.graalvm.wasm.constants.Instructions.MEMORY_GROW;
-import static org.graalvm.wasm.constants.Instructions.MEMORY_SIZE;
-import static org.graalvm.wasm.constants.Instructions.NOP;
-import static org.graalvm.wasm.constants.Instructions.RETURN;
-import static org.graalvm.wasm.constants.Instructions.SELECT;
-import static org.graalvm.wasm.constants.Instructions.UNREACHABLE;
+import static org.graalvm.wasm.constants.Instructions.*;
+
+import java.util.LinkedList;
+import java.util.List;
+
+import org.graalvm.wasm.Assert;
+import org.graalvm.wasm.BinaryStreamParser;
+import org.graalvm.wasm.SymbolTable;
+import org.graalvm.wasm.ValueTypes;
+import org.graalvm.wasm.WasmCodeEntry;
+import org.graalvm.wasm.WasmContext;
+import org.graalvm.wasm.WasmFunction;
+import org.graalvm.wasm.WasmLanguage;
+import org.graalvm.wasm.WasmModule;
+import org.graalvm.wasm.constants.TargetOffset;
+import org.graalvm.wasm.exception.WasmTrap;
+import org.graalvm.wasm.memory.WasmMemory;
+import org.graalvm.wasm.memory.WasmMemoryException;
+import org.graalvm.wasm.nodes.WasmNode;
 
 import com.oracle.truffle.api.CallTarget;
 import com.oracle.truffle.api.CompilerAsserts;
@@ -226,25 +73,10 @@ import com.oracle.truffle.api.nodes.DirectCallNode;
 import com.oracle.truffle.api.nodes.ExplodeLoop;
 import com.oracle.truffle.api.nodes.LoopNode;
 import com.oracle.truffle.api.nodes.Node;
-import com.oracle.truffle.api.nodes.RepeatingNode;
-import org.graalvm.wasm.Assert;
-import org.graalvm.wasm.BinaryStreamParser;
-import org.graalvm.wasm.SymbolTable;
-import org.graalvm.wasm.ValueTypes;
-import org.graalvm.wasm.WasmCodeEntry;
-import org.graalvm.wasm.WasmContext;
-import org.graalvm.wasm.WasmFunction;
-import org.graalvm.wasm.WasmLanguage;
-import org.graalvm.wasm.WasmModule;
-import org.graalvm.wasm.constants.TargetOffset;
-import org.graalvm.wasm.exception.WasmExecutionException;
-import org.graalvm.wasm.exception.WasmTrap;
-import org.graalvm.wasm.memory.WasmMemory;
-import org.graalvm.wasm.memory.WasmMemoryException;
 
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
-public final class WasmBlockNode extends WasmNode implements RepeatingNode {
+public class WasmBlockNode extends WasmNode{
 
     /**
      * The number of bytes in the byte constant table used by this node.
@@ -275,11 +107,14 @@ public final class WasmBlockNode extends WasmNode implements RepeatingNode {
     @CompilationFinal private final int initialLongConstantOffset;
     @CompilationFinal private final int initialBranchTableOffset;
     @CompilationFinal private ContextReference<WasmContext> rawContextReference;
+    @CompilationFinal private final boolean functionBlock;
     @Children private Node[] nestedControlTable;
     @Children private Node[] callNodeTable;
+    
+    private List<WasmNode> statements;
 
     public WasmBlockNode(WasmModule wasmModule, WasmCodeEntry codeEntry, int startOffset, byte returnTypeId, byte continuationTypeId, int initialStackPointer,
-                    int initialByteConstantOffset, int initialIntConstantOffset, int initialLongConstantOffset, int initialBranchTableOffset) {
+                    int initialByteConstantOffset, int initialIntConstantOffset, int initialLongConstantOffset, int initialBranchTableOffset, boolean functionBlock) {
         super(wasmModule, codeEntry, -1);
         this.startOffset = startOffset;
         this.returnTypeId = returnTypeId;
@@ -291,9 +126,11 @@ public final class WasmBlockNode extends WasmNode implements RepeatingNode {
         this.initialBranchTableOffset = initialBranchTableOffset;
         this.nestedControlTable = null;
         this.callNodeTable = null;
+        this.statements = new LinkedList<WasmNode>();
+        this.functionBlock = functionBlock;
     }
 
-    private ContextReference<WasmContext> contextReference() {
+    protected ContextReference<WasmContext> contextReference() {
         if (rawContextReference == null) {
             CompilerDirectives.transferToInterpreterAndInvalidate();
             rawContextReference = lookupContextReference(WasmLanguage.class);
@@ -312,24 +149,28 @@ public final class WasmBlockNode extends WasmNode implements RepeatingNode {
         this.longConstantLength = longConstantLength;
         this.branchTableLength = branchTableLength;
     }
+    
+    public void addStatement(WasmNode st) {
+    	this.statements.add(st);
+    }
 
     @Override
-    int byteConstantLength() {
+    public int byteConstantLength() {
         return byteConstantLength;
     }
 
     @Override
-    int intConstantLength() {
+    public int intConstantLength() {
         return intConstantLength;
     }
 
     @Override
-    int longConstantLength() {
+    public int longConstantLength() {
         return longConstantLength;
     }
 
     @Override
-    int branchTableLength() {
+    public int branchTableLength() {
         return branchTableLength;
     }
 
@@ -339,7 +180,16 @@ public final class WasmBlockNode extends WasmNode implements RepeatingNode {
 
     @Override
     @ExplodeLoop(kind = ExplodeLoop.LoopExplosionKind.FULL_EXPLODE_UNTIL_RETURN)
-    public TargetOffset execute(WasmContext context, VirtualFrame frame) {
+	public TargetOffset execute(WasmContext context, VirtualFrame frame) {
+		for (WasmNode statement : statements) {
+			TargetOffset br = statement.execute(context, frame);
+			if(br != null && !br.isZero()) return br;
+		}
+		return functionBlock ? TargetOffset.MINUS_ONE : TargetOffset.ZERO;
+	}
+    
+    @ExplodeLoop(kind = ExplodeLoop.LoopExplosionKind.FULL_EXPLODE_UNTIL_RETURN)
+    public TargetOffset executeOld(WasmContext context, VirtualFrame frame) {
         int nestedControlOffset = 0;
         int callNodeOffset = 0;
         int byteConstantOffset = initialByteConstantOffset;
@@ -2400,20 +2250,6 @@ public final class WasmBlockNode extends WasmNode implements RepeatingNode {
             push(frame, continuationStackPointer, value);
             continuationStackPointer++;
         }
-    }
-
-    @Override
-    public boolean executeRepeating(VirtualFrame frame) {
-        throw new WasmExecutionException(this, "This method should never have been called.");
-    }
-
-    @Override
-    public Object executeRepeatingWithValue(VirtualFrame frame) {
-        final TargetOffset offset = execute(contextReference().get(), frame);
-        if (offset.isZero()) {
-            return CONTINUE_LOOP_STATUS;
-        }
-        return offset;
     }
 
     @SuppressWarnings("unused")

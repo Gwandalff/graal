@@ -38,19 +38,31 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package org.graalvm.wasm.nodes;
+package org.graalvm.wasm.utils.cases;
 
-import com.oracle.truffle.api.nodes.Node;
-import org.graalvm.wasm.WasmFunction;
+import org.graalvm.polyglot.Value;
 
-public final class WasmCallStubNode extends Node {
-    private WasmFunction function;
+import java.util.function.BiConsumer;
 
-    public WasmCallStubNode(WasmFunction function) {
-        this.function = function;
+public class WasmCaseData {
+    BiConsumer<Value, String> resultValidator;
+    String expectedErrorMessage;
+
+    WasmCaseData(BiConsumer<Value, String> resultValidator) {
+        this.resultValidator = resultValidator;
+        this.expectedErrorMessage = null;
     }
 
-    public WasmFunction function() {
-        return function;
+    WasmCaseData(String expectedErrorMessage) {
+        this.resultValidator = null;
+        this.expectedErrorMessage = expectedErrorMessage;
+    }
+
+    public BiConsumer<Value, String> resultValidator() {
+        return resultValidator;
+    }
+
+    public String expectedErrorMessage() {
+        return expectedErrorMessage;
     }
 }

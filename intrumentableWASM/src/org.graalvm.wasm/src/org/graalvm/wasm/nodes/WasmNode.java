@@ -40,50 +40,82 @@
  */
 package org.graalvm.wasm.nodes;
 
-import static org.graalvm.wasm.ValueTypes.VOID_TYPE;
-
+import com.oracle.truffle.api.CompilerDirectives.CompilationFinal;
 import com.oracle.truffle.api.frame.VirtualFrame;
+import com.oracle.truffle.api.nodes.Node;
 import org.graalvm.wasm.WasmCodeEntry;
 import org.graalvm.wasm.WasmContext;
 import org.graalvm.wasm.WasmModule;
 import org.graalvm.wasm.constants.TargetOffset;
 
-// TODO: Make this a singleton instance.
-public final class WasmEmptyNode extends WasmNode {
+public abstract class WasmNode extends Node implements WasmNodeInterface {
+    // TODO: We should not cache the module in the nodes, only the symbol table.
+    private final WasmModule wasmModule;
+    private final WasmCodeEntry codeEntry;
 
-    public WasmEmptyNode(WasmModule wasmModule, WasmCodeEntry codeEntry, int byteLength) {
-        super(wasmModule, codeEntry, byteLength);
+    /**
+     * The length (in bytes) of the control structure in the instructions stream, without the
+     * initial opcode and the block return type.
+     */
+    @CompilationFinal private int byteLength;
+
+    public WasmNode(WasmModule wasmModule, WasmCodeEntry codeEntry, int byteLength) {
+        this.wasmModule = wasmModule;
+        this.codeEntry = codeEntry;
+        this.byteLength = byteLength;
+    }
+
+    /**
+     * Execute the current node within the given frame and return the branch target.
+     *
+     * @param frame The frame to use for execution.
+     * @return The return value of this method indicates whether a branch is to be executed, in case
+     *         of nested blocks. An offset with value -1 means no branch, whereas a return value n
+     *         greater than or equal to 0 means that the execution engine has to branch n levels up
+     *         the block execution stack.
+     */
+    public abstract TargetOffset execute(WasmContext context, VirtualFrame frame);
+
+    public abstract byte returnTypeId();
+
+    @SuppressWarnings("hiding")
+    protected final void initialize(int byteLength) {
+        this.byteLength = byteLength;
+    }
+
+    protected static final int typeLength(int typeId) {
+        switch (typeId) {
+            case 0x00:
+            case 0x40:
+                return 0;
+            default:
+                return 1;
+        }
+    }
+
+    public int returnTypeLength() {
+        return typeLength(returnTypeId());
     }
 
     @Override
-    public TargetOffset execute(WasmContext context, VirtualFrame frame) {
-        // A return value of -1 means no branch to be taken.
-        return TargetOffset.MINUS_ONE;
+    public final WasmCodeEntry codeEntry() {
+        return codeEntry;
     }
 
-    @Override
-    public byte returnTypeId() {
-        return VOID_TYPE;
+    public final WasmModule module() {
+        return wasmModule;
     }
 
-    @Override
-    int byteConstantLength() {
-        return 0;
+    public int byteLength() {
+        return byteLength;
     }
 
-    @Override
-    int intConstantLength() {
-        return 0;
-    }
+    public abstract int byteConstantLength();
 
-    @Override
-    int longConstantLength() {
-        return 0;
-    }
+    public abstract int intConstantLength();
 
-    @Override
-    int branchTableLength() {
-        return 0;
-    }
+    public abstract int longConstantLength();
+
+    public abstract int branchTableLength();
 
 }

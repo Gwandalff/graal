@@ -55,18 +55,19 @@ import org.graalvm.wasm.constants.LimitsPrefix;
 import org.graalvm.wasm.constants.Section;
 import org.graalvm.wasm.exception.WasmLinkerException;
 import org.graalvm.wasm.memory.WasmMemory;
-import org.graalvm.wasm.nodes.WasmBlockNode;
-import org.graalvm.wasm.nodes.WasmCallStubNode;
 import org.graalvm.wasm.nodes.WasmEmptyNode;
-import org.graalvm.wasm.nodes.WasmIfNode;
-import org.graalvm.wasm.nodes.WasmIndirectCallNode;
 import org.graalvm.wasm.nodes.WasmNode;
 import org.graalvm.wasm.nodes.WasmRootNode;
+import org.graalvm.wasm.nodes.control.WasmBlockNode;
+import org.graalvm.wasm.nodes.control.WasmCallStubNode;
+import org.graalvm.wasm.nodes.control.WasmIfNode;
+import org.graalvm.wasm.nodes.control.WasmIndirectCallNode;
 
 import com.oracle.truffle.api.RootCallTarget;
 import com.oracle.truffle.api.Truffle;
 import com.oracle.truffle.api.nodes.LoopNode;
 import com.oracle.truffle.api.nodes.Node;
+import com.oracle.truffle.api.nodes.RepeatingNode;
 
 /**
  * Simple recursive-descend parser for the binary WebAssembly format.
@@ -365,7 +366,7 @@ public class BinaryParser extends BinaryStreamParser {
         final int returnTypeLength = function.returnTypeLength();
         ExecutionState state = new ExecutionState();
         state.pushStackState(0);
-        WasmBlockNode bodyBlock = readBlockBody(context, rootNode.codeEntry(), state, returnTypeId, returnTypeId);
+        WasmBlockNode bodyBlock = readBlockBody(context, rootNode.codeEntry(), state, returnTypeId, returnTypeId, true);
         state.popStackState();
         Assert.assertIntEqual(state.stackSize(), returnTypeLength,
                         "Stack size must match the return type length at the function end");
@@ -413,9 +414,9 @@ public class BinaryParser extends BinaryStreamParser {
         }
     }
 
-    private WasmBlockNode readBlock(WasmContext context, WasmCodeEntry codeEntry, ExecutionState state) {
+    private WasmBlockNode readBlock(WasmContext context, WasmCodeEntry codeEntry, ExecutionState state, boolean functionBlock) {
         byte blockTypeId = readBlockType();
-        return readBlockBody(context, codeEntry, state, blockTypeId, blockTypeId);
+        return readBlockBody(context, codeEntry, state, blockTypeId, blockTypeId, functionBlock);
     }
 
     private LoopNode readLoop(WasmContext context, WasmCodeEntry codeEntry, ExecutionState state) {
@@ -423,7 +424,7 @@ public class BinaryParser extends BinaryStreamParser {
         return readLoop(context, codeEntry, state, blockTypeId);
     }
 
-    private WasmBlockNode readBlockBody(WasmContext context, WasmCodeEntry codeEntry, ExecutionState state, byte returnTypeId, byte continuationTypeId) {
+    private WasmBlockNode readBlockBody(WasmContext context, WasmCodeEntry codeEntry, ExecutionState state, byte returnTypeId, byte continuationTypeId, boolean functionBlock) {
         ArrayList<Node> nestedControlTable = new ArrayList<>();
         ArrayList<Node> callNodes = new ArrayList<>();
         int startStackSize = state.stackSize();
@@ -433,7 +434,7 @@ public class BinaryParser extends BinaryStreamParser {
         int startLongConstantOffset = state.longConstantOffset();
         int startBranchTableOffset = state.branchTableOffset();
         WasmBlockNode currentBlock = new WasmBlockNode(module, codeEntry, startOffset, returnTypeId, continuationTypeId, startStackSize,
-                        startByteConstantOffset, startIntConstantOffset, startLongConstantOffset, startBranchTableOffset);
+                        startByteConstantOffset, startIntConstantOffset, startLongConstantOffset, startBranchTableOffset, functionBlock);
 
         // Push the type length of the current block's continuation.
         // Used when branching out of nested blocks (br and br_if instructions).
@@ -455,7 +456,7 @@ public class BinaryParser extends BinaryStreamParser {
                     // the nested block (continuation stack pointer).
                     int stackSize = state.stackSize();
                     state.pushStackState(stackSize);
-                    WasmBlockNode nestedBlock = readBlock(context, codeEntry, state);
+                    WasmBlockNode nestedBlock = readBlock(context, codeEntry, state, false);
                     nestedControlTable.add(nestedBlock);
                     state.popStackState();
                     state.setReachable(reachable);
@@ -971,7 +972,7 @@ public class BinaryParser extends BinaryStreamParser {
 
     private LoopNode readLoop(WasmContext context, WasmCodeEntry codeEntry, ExecutionState state, byte returnTypeId) {
         int initialStackPointer = state.stackSize();
-        WasmBlockNode loopBlock = readBlockBody(context, codeEntry, state, returnTypeId, ValueTypes.VOID_TYPE);
+        WasmBlockNode loopBlock = readBlockBody(context, codeEntry, state, returnTypeId, ValueTypes.VOID_TYPE, false);
 
         // TODO: Hack to correctly set the stack pointer for abstract interpretation.
         // If a block has branch instructions that target "shallower" blocks which return no value,
@@ -981,7 +982,7 @@ public class BinaryParser extends BinaryStreamParser {
         // instructions.
         state.setStackSize(returnTypeId != ValueTypes.VOID_TYPE ? initialStackPointer + 1 : initialStackPointer);
 
-        return Truffle.getRuntime().createLoopNode(loopBlock);
+        return Truffle.getRuntime().createLoopNode((RepeatingNode) loopBlock);
     }
 
     private WasmIfNode readIf(WasmContext context, WasmCodeEntry codeEntry, ExecutionState state) {
@@ -991,7 +992,7 @@ public class BinaryParser extends BinaryStreamParser {
 
         // Read true branch.
         int startOffset = offset();
-        WasmBlockNode trueBranchBlock = readBlockBody(context, codeEntry, state, blockTypeId, blockTypeId);
+        WasmBlockNode trueBranchBlock = readBlockBody(context, codeEntry, state, blockTypeId, blockTypeId, false);
 
         // If a block has branch instructions that target "shallower" blocks which return no value,
         // then it can leave no values in the stack, which is invalid for our abstract
@@ -1003,7 +1004,7 @@ public class BinaryParser extends BinaryStreamParser {
         // Read false branch, if it exists.
         WasmNode falseBranchBlock;
         if (peek1(-1) == Instructions.ELSE) {
-            falseBranchBlock = readBlockBody(context, codeEntry, state, blockTypeId, blockTypeId);
+            falseBranchBlock = readBlockBody(context, codeEntry, state, blockTypeId, blockTypeId, false);
         } else {
             if (blockTypeId != ValueTypes.VOID_TYPE) {
                 Assert.fail("An if statement without an else branch block cannot return values.");
