@@ -67,7 +67,7 @@ import org.graalvm.wasm.SymbolTable.FunctionType;
 import org.graalvm.wasm.constants.GlobalModifier;
 import org.graalvm.wasm.exception.WasmLinkerException;
 import org.graalvm.wasm.memory.WasmMemory;
-import org.graalvm.wasm.nodes.control.WasmBlockNode;
+import org.graalvm.wasm.nodes.WasmBlockNode;
 
 import com.oracle.truffle.api.CompilerDirectives;
 import com.oracle.truffle.api.interop.UnknownIdentifierException;

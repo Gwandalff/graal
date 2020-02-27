@@ -59,7 +59,6 @@ public final class WasmContext {
     private final TableRegistry tableRegistry;
     private final Linker linker;
     private Map<String, WasmModule> modules;
-    private int sp;
 
     public static WasmContext getCurrent() {
         return WasmLanguage.getCurrentContext();
