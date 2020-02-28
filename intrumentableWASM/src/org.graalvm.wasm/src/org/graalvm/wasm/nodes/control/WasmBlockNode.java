@@ -183,7 +183,7 @@ public class WasmBlockNode extends WasmNode{
 	public TargetOffset execute(WasmContext context, VirtualFrame frame) {
 		for (WasmNode statement : statements) {
 			TargetOffset br = statement.execute(context, frame);
-			if(br != null && !br.isZero()) return br;
+			if(br != null && !br.isZero()) return functionBlock && br.isMinusOne() ? TargetOffset.ZERO : br;
 		}
 		return functionBlock ? TargetOffset.MINUS_ONE : TargetOffset.ZERO;
 	}

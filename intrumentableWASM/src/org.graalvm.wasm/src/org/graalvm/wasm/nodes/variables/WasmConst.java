@@ -1,23 +1,64 @@
 package org.graalvm.wasm.nodes.variables;
 
+import static org.graalvm.wasm.WasmTracing.trace;
+
+import org.graalvm.wasm.ValueTypes;
 import org.graalvm.wasm.WasmCodeEntry;
 import org.graalvm.wasm.WasmContext;
 import org.graalvm.wasm.WasmModule;
 import org.graalvm.wasm.constants.TargetOffset;
+import org.graalvm.wasm.exception.WasmTrap;
 import org.graalvm.wasm.nodes.WasmNode;
 
+import com.oracle.truffle.api.CompilerDirectives.CompilationFinal;
 import com.oracle.truffle.api.frame.VirtualFrame;
 
 public class WasmConst extends WasmNode {
+	
+	@CompilationFinal private final byte type;
+	@CompilationFinal private final int intvalue;
+	@CompilationFinal private final long longvalue;
 
-	public WasmConst(WasmModule wasmModule, WasmCodeEntry codeEntry, int byteLength) {
+	public WasmConst(WasmModule wasmModule, WasmCodeEntry codeEntry, int byteLength, byte type, int value) {
 		super(wasmModule, codeEntry, byteLength);
-		// TODO Auto-generated constructor stub
+		this.type = type;
+		this.intvalue = value;
+		this.longvalue = 0;
+	}
+	public WasmConst(WasmModule wasmModule, WasmCodeEntry codeEntry, int byteLength, byte type, long value) {
+		super(wasmModule, codeEntry, byteLength);
+		this.type = type;
+		this.intvalue = 0;
+		this.longvalue = value;
 	}
 
 	@Override
 	public TargetOffset execute(WasmContext context, VirtualFrame frame) {
-		// TODO Auto-generated method stub
+		switch (this.type) {
+		case ValueTypes.F32_TYPE:
+			pushInt(frame, context.stackpointer, this.intvalue);
+			context.stackpointer++;
+            trace("f32.const %f", Float.intBitsToFloat(this.intvalue));
+			break;
+		case ValueTypes.F64_TYPE:
+			push(frame, context.stackpointer, this.longvalue);
+			context.stackpointer++;
+            trace("f64.const %f", Double.longBitsToDouble(this.longvalue));
+			break;
+		case ValueTypes.I32_TYPE:
+			pushInt(frame, context.stackpointer, this.intvalue);
+			context.stackpointer++;
+            trace("i32.const 0x%08X (%d)", this.intvalue, this.intvalue);
+			break;
+		case ValueTypes.I64_TYPE:
+			push(frame, context.stackpointer, this.longvalue);
+			context.stackpointer++;
+            trace("i64.const 0x%08X (%d)", this.longvalue, this.longvalue);
+			break;
+
+		default:
+			throw new WasmTrap(this, "Constant cannot have the void type.");
+		}
 		return null;
 	}
 
