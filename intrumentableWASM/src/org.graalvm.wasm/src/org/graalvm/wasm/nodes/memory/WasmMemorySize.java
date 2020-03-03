@@ -12,8 +12,8 @@ import com.oracle.truffle.api.frame.VirtualFrame;
 
 public class WasmMemorySize extends WasmNode {
 
-	public WasmMemorySize(WasmModule wasmModule, WasmCodeEntry codeEntry, int byteLength) {
-		super(wasmModule, codeEntry, byteLength);
+	public WasmMemorySize(WasmModule wasmModule, WasmCodeEntry codeEntry) {
+		super(wasmModule, codeEntry);
 	}
 
 	@Override

@@ -17,8 +17,8 @@ public class WasmXor extends WasmNode {
 
 	@CompilationFinal private final byte type;
 
-	public WasmXor(WasmModule wasmModule, WasmCodeEntry codeEntry, int byteLength, byte type) {
-		super(wasmModule, codeEntry, byteLength);
+	public WasmXor(WasmModule wasmModule, WasmCodeEntry codeEntry, byte type) {
+		super(wasmModule, codeEntry);
 		this.type = type;
 	}
 

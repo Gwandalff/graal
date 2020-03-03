@@ -16,8 +16,8 @@ public class WasmReinterpret extends WasmNode {
 	@CompilationFinal private final byte fromT;
 	@CompilationFinal private final byte toT;
 	
-	public WasmReinterpret(WasmModule wasmModule, WasmCodeEntry codeEntry, int byteLength, byte from, byte to) {
-		super(wasmModule, codeEntry, byteLength);
+	public WasmReinterpret(WasmModule wasmModule, WasmCodeEntry codeEntry, byte from, byte to) {
+		super(wasmModule, codeEntry);
 		this.fromT = from;
 		this.toT = to;
 	}

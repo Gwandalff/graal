@@ -17,8 +17,8 @@ public class WasmCLZ extends WasmNode {
 
 	@CompilationFinal private final byte type;
 
-	public WasmCLZ(WasmModule wasmModule, WasmCodeEntry codeEntry, int byteLength, byte type) {
-		super(wasmModule, codeEntry, byteLength);
+	public WasmCLZ(WasmModule wasmModule, WasmCodeEntry codeEntry, byte type) {
+		super(wasmModule, codeEntry);
 		this.type = type;
 	}
 

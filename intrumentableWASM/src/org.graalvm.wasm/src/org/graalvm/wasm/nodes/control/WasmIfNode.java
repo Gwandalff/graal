@@ -60,8 +60,8 @@ public final class WasmIfNode extends WasmNode {
 
     private final ConditionProfile condition = ConditionProfile.createCountingProfile();
 
-    public WasmIfNode(WasmModule wasmModule, WasmCodeEntry codeEntry, WasmNode trueBranch, WasmNode falseBranch, int byteLength, byte returnTypeId, int initialStackPointer) {
-        super(wasmModule, codeEntry, byteLength);
+    public WasmIfNode(WasmModule wasmModule, WasmCodeEntry codeEntry, WasmNode trueBranch, WasmNode falseBranch, byte returnTypeId, int initialStackPointer) {
+        super(wasmModule, codeEntry);
         this.returnTypeId = returnTypeId;
         this.initialStackPointer = initialStackPointer;
         this.trueBranch = trueBranch;

@@ -17,8 +17,8 @@ public class WasmAnd extends WasmNode {
 	
 	@CompilationFinal private final byte type;
 
-	public WasmAnd(WasmModule wasmModule, WasmCodeEntry codeEntry, int byteLength, byte type) {
-		super(wasmModule, codeEntry, byteLength);
+	public WasmAnd(WasmModule wasmModule, WasmCodeEntry codeEntry, byte type) {
+		super(wasmModule, codeEntry);
 		this.type = type;
 	}
 

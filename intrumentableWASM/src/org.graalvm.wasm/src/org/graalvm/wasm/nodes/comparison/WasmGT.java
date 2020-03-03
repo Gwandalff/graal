@@ -14,20 +14,19 @@ import com.oracle.truffle.api.CompilerDirectives.CompilationFinal;
 import com.oracle.truffle.api.frame.VirtualFrame;
 
 public class WasmGT extends WasmNode {
-
 	@CompilationFinal
 	private final byte type;
 	@CompilationFinal
 	private final boolean signed;
 
-	public WasmGT(WasmModule wasmModule, WasmCodeEntry codeEntry, int byteLength, byte type, boolean signed) {
-		super(wasmModule, codeEntry, byteLength);
+	public WasmGT(WasmModule wasmModule, WasmCodeEntry codeEntry, byte type, boolean signed) {
+		super(wasmModule, codeEntry);
 		this.type = type;
 		this.signed = signed;
 	}
 	
-	public WasmGT(WasmModule wasmModule, WasmCodeEntry codeEntry, int byteLength, byte type) {
-		super(wasmModule, codeEntry, byteLength);
+	public WasmGT(WasmModule wasmModule, WasmCodeEntry codeEntry, byte type) {
+		super(wasmModule, codeEntry);
 		this.type = type;
 		this.signed = true;
 	}

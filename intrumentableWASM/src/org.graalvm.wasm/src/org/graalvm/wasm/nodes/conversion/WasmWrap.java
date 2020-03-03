@@ -12,8 +12,8 @@ import com.oracle.truffle.api.frame.VirtualFrame;
 
 public class WasmWrap extends WasmNode {
 
-	public WasmWrap(WasmModule wasmModule, WasmCodeEntry codeEntry, int byteLength) {
-		super(wasmModule, codeEntry, byteLength);
+	public WasmWrap(WasmModule wasmModule, WasmCodeEntry codeEntry) {
+		super(wasmModule, codeEntry);
 	}
 
 	@Override

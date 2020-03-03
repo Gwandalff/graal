@@ -1,4 +1,4 @@
-package org.graalvm.wasm.nodes.conversion;
+package org.graalvm.wasm.nodes.uncategorized;
 
 import static org.graalvm.wasm.WasmTracing.trace;
 
@@ -8,26 +8,17 @@ import org.graalvm.wasm.WasmModule;
 import org.graalvm.wasm.constants.TargetOffset;
 import org.graalvm.wasm.nodes.WasmNode;
 
-import com.oracle.truffle.api.CompilerDirectives.CompilationFinal;
 import com.oracle.truffle.api.frame.VirtualFrame;
 
-public class WasmExtend extends WasmNode {
-	
-	@CompilationFinal private final boolean signed;
+public class WasmNop extends WasmNode {
 
-	public WasmExtend(WasmModule wasmModule, WasmCodeEntry codeEntry, boolean signed) {
+	public WasmNop(WasmModule wasmModule, WasmCodeEntry codeEntry) {
 		super(wasmModule, codeEntry);
-		this.signed = signed;
 	}
 
 	@Override
 	public TargetOffset execute(WasmContext context, VirtualFrame frame) {
-		context.stackpointer--;
-        int x = popInt(frame, context.stackpointer);
-        long result = this.signed ? x : x & 0xFFFF_FFFFL;
-        push(frame, context.stackpointer, result);
-        context.stackpointer++;
-        trace("push extend_i32_" + (signed?"s":"u") + "(0x%08X) = 0x%016X (%d) [i64]", x, result, result);
+		trace("noop");
 		return null;
 	}
 

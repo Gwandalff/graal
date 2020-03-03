@@ -18,8 +18,8 @@ public class WasmCopySign extends WasmNode {
 	@CompilationFinal
 	private final byte type;
 
-	public WasmCopySign(WasmModule wasmModule, WasmCodeEntry codeEntry, int byteLength, byte type) {
-		super(wasmModule, codeEntry, byteLength);
+	public WasmCopySign(WasmModule wasmModule, WasmCodeEntry codeEntry, byte type) {
+		super(wasmModule, codeEntry);
 		this.type = type;
 	}
 

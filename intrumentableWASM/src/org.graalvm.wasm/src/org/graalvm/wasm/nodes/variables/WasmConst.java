@@ -19,14 +19,14 @@ public class WasmConst extends WasmNode {
 	@CompilationFinal private final int intvalue;
 	@CompilationFinal private final long longvalue;
 
-	public WasmConst(WasmModule wasmModule, WasmCodeEntry codeEntry, int byteLength, byte type, int value) {
-		super(wasmModule, codeEntry, byteLength);
+	public WasmConst(WasmModule wasmModule, WasmCodeEntry codeEntry, byte type, int value) {
+		super(wasmModule, codeEntry);
 		this.type = type;
 		this.intvalue = value;
 		this.longvalue = 0;
 	}
-	public WasmConst(WasmModule wasmModule, WasmCodeEntry codeEntry, int byteLength, byte type, long value) {
-		super(wasmModule, codeEntry, byteLength);
+	public WasmConst(WasmModule wasmModule, WasmCodeEntry codeEntry, byte type, long value) {
+		super(wasmModule, codeEntry);
 		this.type = type;
 		this.intvalue = 0;
 		this.longvalue = value;

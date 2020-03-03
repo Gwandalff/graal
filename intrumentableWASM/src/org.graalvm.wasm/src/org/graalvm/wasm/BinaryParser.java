@@ -568,6 +568,7 @@ public class BinaryParser extends BinaryStreamParser {
                     }
                     branchTable[0] = returnLength;
                     // The offset to the branch table.
+                    state.branchTableOffset();
                     state.saveBranchTable(branchTable);
                     // This instruction is stack-polymorphic.
                     state.setReachable(false);
@@ -956,7 +957,7 @@ public class BinaryParser extends BinaryStreamParser {
         } while (opcode != Instructions.END && opcode != Instructions.ELSE);
         currentBlock.initialize(nestedControlTable.toArray(new Node[nestedControlTable.size()]),
                         callNodes.toArray(new Node[callNodes.size()]),
-                        offset() - startOffset, state.byteConstantOffset() - startByteConstantOffset,
+                        state.byteConstantOffset() - startByteConstantOffset,
                         state.intConstantOffset() - startIntConstantOffset, state.longConstantOffset() - startLongConstantOffset,
                         state.branchTableOffset() - startBranchTableOffset);
         // TODO: Restore this check, when we fix the case where the block contains a return
@@ -1009,11 +1010,11 @@ public class BinaryParser extends BinaryStreamParser {
             if (blockTypeId != ValueTypes.VOID_TYPE) {
                 Assert.fail("An if statement without an else branch block cannot return values.");
             }
-            falseBranchBlock = new WasmEmptyNode(module, codeEntry, 0);
+            falseBranchBlock = new WasmEmptyNode(module, codeEntry);
         }
 
         int stackSizeBeforeCondition = stackSizeAfterCondition + 1;
-        return new WasmIfNode(module, codeEntry, trueBranchBlock, falseBranchBlock, offset() - startOffset, blockTypeId, stackSizeBeforeCondition);
+        return new WasmIfNode(module, codeEntry, trueBranchBlock, falseBranchBlock, blockTypeId, stackSizeBeforeCondition);
     }
 
     private void readElementSection(WasmContext context) {

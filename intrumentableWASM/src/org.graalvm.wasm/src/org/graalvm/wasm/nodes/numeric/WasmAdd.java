@@ -18,8 +18,8 @@ public class WasmAdd extends WasmNode {
 	@CompilationFinal
 	private final byte type;
 
-	public WasmAdd(WasmModule wasmModule, WasmCodeEntry codeEntry, int byteLength, byte type) {
-		super(wasmModule, codeEntry, byteLength);
+	public WasmAdd(WasmModule wasmModule, WasmCodeEntry codeEntry, byte type) {
+		super(wasmModule, codeEntry);
 		this.type = type;
 	}
 

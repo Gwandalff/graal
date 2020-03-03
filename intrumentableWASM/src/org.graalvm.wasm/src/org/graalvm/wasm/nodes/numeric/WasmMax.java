@@ -18,8 +18,8 @@ public class WasmMax extends WasmNode {
 	@CompilationFinal
 	private final byte type;
 
-	public WasmMax(WasmModule wasmModule, WasmCodeEntry codeEntry, int byteLength, byte type) {
-		super(wasmModule, codeEntry, byteLength);
+	public WasmMax(WasmModule wasmModule, WasmCodeEntry codeEntry, byte type) {
+		super(wasmModule, codeEntry);
 		this.type = type;
 	}
 

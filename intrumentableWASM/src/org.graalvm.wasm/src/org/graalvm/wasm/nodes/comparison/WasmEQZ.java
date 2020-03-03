@@ -18,8 +18,8 @@ public class WasmEQZ extends WasmNode {
 	@CompilationFinal
 	private final byte type;
 	
-	public WasmEQZ(WasmModule wasmModule, WasmCodeEntry codeEntry, int byteLength, byte type) {
-		super(wasmModule, codeEntry, byteLength);
+	public WasmEQZ(WasmModule wasmModule, WasmCodeEntry codeEntry, byte type) {
+		super(wasmModule, codeEntry);
 		this.type = type;
 	}
 

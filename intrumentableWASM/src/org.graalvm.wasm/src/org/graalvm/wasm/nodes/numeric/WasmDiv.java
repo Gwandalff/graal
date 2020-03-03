@@ -18,14 +18,14 @@ public class WasmDiv extends WasmNode {
 	@CompilationFinal private final byte type;
 	@CompilationFinal private final boolean signed;
 
-	public WasmDiv(WasmModule wasmModule, WasmCodeEntry codeEntry, int byteLength, byte type) {
-		super(wasmModule, codeEntry, byteLength);
+	public WasmDiv(WasmModule wasmModule, WasmCodeEntry codeEntry, byte type) {
+		super(wasmModule, codeEntry);
 		this.type = type;
 		this.signed = true;
 	}
 	
-	public WasmDiv(WasmModule wasmModule, WasmCodeEntry codeEntry, int byteLength, byte type, boolean signed) {
-		super(wasmModule, codeEntry, byteLength);
+	public WasmDiv(WasmModule wasmModule, WasmCodeEntry codeEntry, byte type, boolean signed) {
+		super(wasmModule, codeEntry);
 		this.type = type;
 		this.signed = signed;
 	}

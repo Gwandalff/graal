@@ -51,8 +51,8 @@ import org.graalvm.wasm.constants.TargetOffset;
 // TODO: Make this a singleton instance.
 public final class WasmEmptyNode extends WasmNode {
 
-    public WasmEmptyNode(WasmModule wasmModule, WasmCodeEntry codeEntry, int byteLength) {
-        super(wasmModule, codeEntry, byteLength);
+    public WasmEmptyNode(WasmModule wasmModule, WasmCodeEntry codeEntry) {
+        super(wasmModule, codeEntry);
     }
 
     @Override

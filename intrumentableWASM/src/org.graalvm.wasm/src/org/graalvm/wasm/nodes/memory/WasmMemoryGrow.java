@@ -13,8 +13,8 @@ import com.oracle.truffle.api.frame.VirtualFrame;
 
 public class WasmMemoryGrow extends WasmNode {
 
-	public WasmMemoryGrow(WasmModule wasmModule, WasmCodeEntry codeEntry, int byteLength) {
-		super(wasmModule, codeEntry, byteLength);
+	public WasmMemoryGrow(WasmModule wasmModule, WasmCodeEntry codeEntry) {
+		super(wasmModule, codeEntry);
 		// TODO Auto-generated constructor stub
 	}
 

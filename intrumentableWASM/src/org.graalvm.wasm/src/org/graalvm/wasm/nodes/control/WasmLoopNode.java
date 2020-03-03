@@ -30,7 +30,7 @@ public class WasmLoopNode extends WasmBlockNode implements RepeatingNode {
         if (offset.isZero()) {
             return CONTINUE_LOOP_STATUS;
         }
-        return offset;
+        return offset.isMinusOne() ? offset : offset.decrement();
     }
 
 }

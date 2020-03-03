@@ -115,7 +115,7 @@ public class WasmBlockNode extends WasmNode{
 
     public WasmBlockNode(WasmModule wasmModule, WasmCodeEntry codeEntry, int startOffset, byte returnTypeId, byte continuationTypeId, int initialStackPointer,
                     int initialByteConstantOffset, int initialIntConstantOffset, int initialLongConstantOffset, int initialBranchTableOffset, boolean functionBlock) {
-        super(wasmModule, codeEntry, -1);
+        super(wasmModule, codeEntry);
         this.startOffset = startOffset;
         this.returnTypeId = returnTypeId;
         this.continuationTypeId = continuationTypeId;
@@ -139,9 +139,8 @@ public class WasmBlockNode extends WasmNode{
     }
 
     @SuppressWarnings("hiding")
-    public void initialize(Node[] nestedControlTable, Node[] callNodeTable, int byteLength, int byteConstantLength,
+    public void initialize(Node[] nestedControlTable, Node[] callNodeTable, int byteConstantLength,
                     int intConstantLength, int longConstantLength, int branchTableLength) {
-        initialize(byteLength);
         this.nestedControlTable = nestedControlTable;
         this.callNodeTable = callNodeTable;
         this.byteConstantLength = byteConstantLength;
@@ -183,12 +182,18 @@ public class WasmBlockNode extends WasmNode{
 	public TargetOffset execute(WasmContext context, VirtualFrame frame) {
 		for (WasmNode statement : statements) {
 			TargetOffset br = statement.execute(context, frame);
-			if(br != null && !br.isZero()) return functionBlock && br.isMinusOne() ? TargetOffset.ZERO : br;
+			if(br != null && !br.isZero()) {
+				if(br.isMinusOne()) {
+					return functionBlock ? TargetOffset.ZERO : br;
+				} else {
+					return br.decrement();
+				}
+			}
 		}
-		return functionBlock ? TargetOffset.MINUS_ONE : TargetOffset.ZERO;
+		return TargetOffset.ZERO;
 	}
     
-    @ExplodeLoop(kind = ExplodeLoop.LoopExplosionKind.FULL_EXPLODE_UNTIL_RETURN)
+    /*@ExplodeLoop(kind = ExplodeLoop.LoopExplosionKind.FULL_EXPLODE_UNTIL_RETURN)
     public TargetOffset executeOld(WasmContext context, VirtualFrame frame) {
         int nestedControlOffset = 0;
         int callNodeOffset = 0;
@@ -199,7 +204,7 @@ public class WasmBlockNode extends WasmNode{
         int stackPointer = initialStackPointer;
         int offset = startOffset;
         trace("block/if/loop EXECUTE");
-        while (offset < startOffset + byteLength()) {
+        while (offset < startOffset) {
             byte byteOpcode = BinaryStreamParser.peek1(codeEntry().data(), offset);
             int opcode = byteOpcode & 0xFF;
             offset++;
@@ -224,7 +229,6 @@ public class WasmBlockNode extends WasmNode{
                     }
 
                     nestedControlOffset++;
-                    offset += block.byteLength();
                     stackPointer += block.returnTypeLength();
                     byteConstantOffset += block.byteConstantLength();
                     intConstantOffset += block.intConstantLength();
@@ -259,7 +263,6 @@ public class WasmBlockNode extends WasmNode{
                     assert unwindCounter.isMinusOne() : "Unwind counter after loop exit: " + unwindCounter.value;
 
                     nestedControlOffset++;
-                    offset += loopBody.byteLength();
                     stackPointer += loopBody.returnTypeLength();
                     byteConstantOffset += loopBody.byteConstantLength();
                     intConstantOffset += loopBody.intConstantLength();
@@ -277,7 +280,6 @@ public class WasmBlockNode extends WasmNode{
                         return unwindCounter.decrement();
                     }
                     nestedControlOffset++;
-                    offset += ifNode.byteLength();
                     stackPointer += ifNode.returnTypeLength();
                     byteConstantOffset += ifNode.byteConstantLength();
                     intConstantOffset += ifNode.intConstantLength();
@@ -766,7 +768,7 @@ public class WasmBlockNode extends WasmNode{
                 case I64_LOAD16_U:
                 case I64_LOAD32_S:
                 case I64_LOAD32_U: {
-                    /* The memAlign hint is not currently used or taken into account. */
+                     The memAlign hint is not currently used or taken into account. 
                     byte memAlignConstantLength = codeEntry().byteConstant(byteConstantOffset);
                     byteConstantOffset++;
                     offset += memAlignConstantLength;
@@ -873,7 +875,7 @@ public class WasmBlockNode extends WasmNode{
                 case I64_STORE_8:
                 case I64_STORE_16:
                 case I64_STORE_32: {
-                    /* The memAlign hint is not currently used or taken into account. */
+                     The memAlign hint is not currently used or taken into account. 
                     byte memAlignConstantLength = codeEntry().byteConstant(byteConstantOffset);
                     byteConstantOffset++;
                     offset += memAlignConstantLength;
@@ -2199,7 +2201,7 @@ public class WasmBlockNode extends WasmNode{
     private boolean popCondition(VirtualFrame frame, int stackPointer) {
         int condition = popInt(frame, stackPointer);
         return condition != 0;
-    }
+    }*/
 
     @TruffleBoundary
     public void resolveCallNode(int callNodeOffset) {

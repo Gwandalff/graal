@@ -18,8 +18,8 @@ public class WasmLocalTee extends WasmNode {
 	@CompilationFinal private final byte type;
 	@CompilationFinal private final int index;
 
-	public WasmLocalTee(WasmModule wasmModule, WasmCodeEntry codeEntry, int byteLength, byte type, int index) {
-		super(wasmModule, codeEntry, byteLength);
+	public WasmLocalTee(WasmModule wasmModule, WasmCodeEntry codeEntry, byte type, int index) {
+		super(wasmModule, codeEntry);
 		this.type = type;
 		this.index = index;
 	}

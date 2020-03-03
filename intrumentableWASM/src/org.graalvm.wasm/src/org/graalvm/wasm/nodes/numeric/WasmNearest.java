@@ -18,8 +18,8 @@ public class WasmNearest extends WasmNode {
 	@CompilationFinal
 	private final byte type;
 
-	public WasmNearest(WasmModule wasmModule, WasmCodeEntry codeEntry, int byteLength, byte type) {
-		super(wasmModule, codeEntry, byteLength);
+	public WasmNearest(WasmModule wasmModule, WasmCodeEntry codeEntry, byte type) {
+		super(wasmModule, codeEntry);
 		this.type = type;
 	}
 

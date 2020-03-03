@@ -18,8 +18,8 @@ public class WasmShR extends WasmNode {
 	@CompilationFinal private final byte type;
 	@CompilationFinal private final boolean signed;
 
-	public WasmShR(WasmModule wasmModule, WasmCodeEntry codeEntry, int byteLength, byte type, boolean signed) {
-		super(wasmModule, codeEntry, byteLength);
+	public WasmShR(WasmModule wasmModule, WasmCodeEntry codeEntry, byte type, boolean signed) {
+		super(wasmModule, codeEntry);
 		this.type = type;
 		this.signed = signed;
 	}

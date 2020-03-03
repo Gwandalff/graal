@@ -18,8 +18,8 @@ public class WasmConvert extends WasmNode {
 	@CompilationFinal private final byte fromT;
 	@CompilationFinal private final byte toT;
 	
-	public WasmConvert(WasmModule wasmModule, WasmCodeEntry codeEntry, int byteLength, byte from, byte to) {
-		super(wasmModule, codeEntry, byteLength);
+	public WasmConvert(WasmModule wasmModule, WasmCodeEntry codeEntry, byte from, byte to) {
+		super(wasmModule, codeEntry);
 		this.fromT = from;
 		this.toT = to;
 	}

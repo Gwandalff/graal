@@ -12,8 +12,8 @@ import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 public class WasmPromote extends WasmNode {
 
-	public WasmPromote(WasmModule wasmModule, WasmCodeEntry codeEntry, int byteLength) {
-		super(wasmModule, codeEntry, byteLength);
+	public WasmPromote(WasmModule wasmModule, WasmCodeEntry codeEntry) {
+		super(wasmModule, codeEntry);
 	}
 
 	@Override

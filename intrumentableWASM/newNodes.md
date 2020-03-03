@@ -4,7 +4,6 @@
 
 ### Introduced
 
-- WasmLoopNode
 - WasmBr
 - WasmBrIf
 - WasmBrTable
@@ -13,7 +12,10 @@
 ### Modified
 
 - WasmIfNode
+- WasmLoopNode
 - WasmBlocNode
+- WasmIndirectCallNode
+- WasmCallStubNode
 
 ## Operation Nodes
 

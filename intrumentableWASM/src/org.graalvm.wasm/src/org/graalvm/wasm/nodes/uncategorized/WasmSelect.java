@@ -1,4 +1,4 @@
-package org.graalvm.wasm.nodes.conversion;
+package org.graalvm.wasm.nodes.uncategorized;
 
 import static org.graalvm.wasm.WasmTracing.trace;
 
@@ -8,26 +8,25 @@ import org.graalvm.wasm.WasmModule;
 import org.graalvm.wasm.constants.TargetOffset;
 import org.graalvm.wasm.nodes.WasmNode;
 
-import com.oracle.truffle.api.CompilerDirectives.CompilationFinal;
 import com.oracle.truffle.api.frame.VirtualFrame;
 
-public class WasmExtend extends WasmNode {
-	
-	@CompilationFinal private final boolean signed;
+public class WasmSelect extends WasmNode {
 
-	public WasmExtend(WasmModule wasmModule, WasmCodeEntry codeEntry, boolean signed) {
+	public WasmSelect(WasmModule wasmModule, WasmCodeEntry codeEntry) {
 		super(wasmModule, codeEntry);
-		this.signed = signed;
 	}
 
 	@Override
 	public TargetOffset execute(WasmContext context, VirtualFrame frame) {
 		context.stackpointer--;
-        int x = popInt(frame, context.stackpointer);
-        long result = this.signed ? x : x & 0xFFFF_FFFFL;
-        push(frame, context.stackpointer, result);
+        int cond = popInt(frame, context.stackpointer);
+        context.stackpointer--;
+        long val2 = pop(frame, context.stackpointer);
+        context.stackpointer--;
+        long val1 = pop(frame, context.stackpointer);
+        push(frame, context.stackpointer, cond != 0 ? val1 : val2);
         context.stackpointer++;
-        trace("push extend_i32_" + (signed?"s":"u") + "(0x%08X) = 0x%016X (%d) [i64]", x, result, result);
+        trace("select 0x%08X ? 0x%08X : 0x%08X = 0x%08X", cond, val1, val2, cond != 0 ? val1 : val2);
 		return null;
 	}
 

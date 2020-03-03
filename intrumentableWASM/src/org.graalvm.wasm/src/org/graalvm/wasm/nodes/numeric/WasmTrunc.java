@@ -18,8 +18,8 @@ public class WasmTrunc extends WasmNode {
 	@CompilationFinal
 	private final byte type;
 
-	public WasmTrunc(WasmModule wasmModule, WasmCodeEntry codeEntry, int byteLength, byte type) {
-		super(wasmModule, codeEntry, byteLength);
+	public WasmTrunc(WasmModule wasmModule, WasmCodeEntry codeEntry, byte type) {
+		super(wasmModule, codeEntry);
 		this.type = type;
 	}
 

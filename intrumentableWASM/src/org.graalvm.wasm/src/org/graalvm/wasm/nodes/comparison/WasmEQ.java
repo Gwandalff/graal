@@ -18,8 +18,8 @@ public class WasmEQ extends WasmNode {
 	@CompilationFinal
 	private final byte type;
 	
-	public WasmEQ(WasmModule wasmModule, WasmCodeEntry codeEntry, int byteLength, byte type) {
-		super(wasmModule, codeEntry, byteLength);
+	public WasmEQ(WasmModule wasmModule, WasmCodeEntry codeEntry, byte type) {
+		super(wasmModule, codeEntry);
 		this.type = type;
 	}
 

@@ -20,14 +20,14 @@ public class WasmLT extends WasmNode {
 	@CompilationFinal
 	private final boolean signed;
 
-	public WasmLT(WasmModule wasmModule, WasmCodeEntry codeEntry, int byteLength, byte type, boolean signed) {
-		super(wasmModule, codeEntry, byteLength);
+	public WasmLT(WasmModule wasmModule, WasmCodeEntry codeEntry, byte type, boolean signed) {
+		super(wasmModule, codeEntry);
 		this.type = type;
 		this.signed = signed;
 	}
 	
-	public WasmLT(WasmModule wasmModule, WasmCodeEntry codeEntry, int byteLength, byte type) {
-		super(wasmModule, codeEntry, byteLength);
+	public WasmLT(WasmModule wasmModule, WasmCodeEntry codeEntry, byte type) {
+		super(wasmModule, codeEntry);
 		this.type = type;
 		this.signed = true;
 	}

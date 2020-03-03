@@ -40,29 +40,24 @@
  */
 package org.graalvm.wasm.nodes;
 
-import com.oracle.truffle.api.CompilerDirectives.CompilationFinal;
-import com.oracle.truffle.api.frame.VirtualFrame;
-import com.oracle.truffle.api.nodes.Node;
 import org.graalvm.wasm.WasmCodeEntry;
 import org.graalvm.wasm.WasmContext;
 import org.graalvm.wasm.WasmModule;
 import org.graalvm.wasm.constants.TargetOffset;
+
+import com.oracle.truffle.api.frame.VirtualFrame;
+import com.oracle.truffle.api.nodes.Node;
 
 public abstract class WasmNode extends Node implements WasmNodeInterface {
     // TODO: We should not cache the module in the nodes, only the symbol table.
     private final WasmModule wasmModule;
     private final WasmCodeEntry codeEntry;
 
-    /**
-     * The length (in bytes) of the control structure in the instructions stream, without the
-     * initial opcode and the block return type.
-     */
-    @CompilationFinal private int byteLength;
 
-    public WasmNode(WasmModule wasmModule, WasmCodeEntry codeEntry, int byteLength) {
+
+    public WasmNode(WasmModule wasmModule, WasmCodeEntry codeEntry) {
         this.wasmModule = wasmModule;
         this.codeEntry = codeEntry;
-        this.byteLength = byteLength;
     }
 
     /**
@@ -77,11 +72,6 @@ public abstract class WasmNode extends Node implements WasmNodeInterface {
     public abstract TargetOffset execute(WasmContext context, VirtualFrame frame);
 
     public abstract byte returnTypeId();
-
-    @SuppressWarnings("hiding")
-    protected final void initialize(int byteLength) {
-        this.byteLength = byteLength;
-    }
 
     protected static final int typeLength(int typeId) {
         switch (typeId) {
@@ -104,10 +94,6 @@ public abstract class WasmNode extends Node implements WasmNodeInterface {
 
     public final WasmModule module() {
         return wasmModule;
-    }
-
-    public int byteLength() {
-        return byteLength;
     }
 
     public abstract int byteConstantLength();

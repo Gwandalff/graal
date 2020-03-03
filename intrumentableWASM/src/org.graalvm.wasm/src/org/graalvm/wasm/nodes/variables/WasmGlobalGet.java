@@ -17,8 +17,8 @@ public class WasmGlobalGet extends WasmNode {
 
 	@CompilationFinal private final int index;
 
-	public WasmGlobalGet(WasmModule wasmModule, WasmCodeEntry codeEntry, int byteLength, int index) {
-		super(wasmModule, codeEntry, byteLength);
+	public WasmGlobalGet(WasmModule wasmModule, WasmCodeEntry codeEntry, int index) {
+		super(wasmModule, codeEntry);
 		this.index = index;
 	}
 

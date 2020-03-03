@@ -17,8 +17,8 @@ public class WasmGlobalSet extends WasmNode {
 
 	@CompilationFinal private final int index;
 
-	public WasmGlobalSet(WasmModule wasmModule, WasmCodeEntry codeEntry, int byteLength, int index) {
-		super(wasmModule, codeEntry, byteLength);
+	public WasmGlobalSet(WasmModule wasmModule, WasmCodeEntry codeEntry, int index) {
+		super(wasmModule, codeEntry);
 		this.index = index;
 	}
 
