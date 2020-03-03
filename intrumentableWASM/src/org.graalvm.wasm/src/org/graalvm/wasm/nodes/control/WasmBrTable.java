@@ -15,16 +15,10 @@ import com.oracle.truffle.api.nodes.ExplodeLoop;
 
 public class WasmBrTable extends WasmNode {
 
-	@CompilationFinal private final int unwindLevel;
-	@CompilationFinal private final int continuationStackPointer;
-	@CompilationFinal private final int targetBlockReturnLength;
 	@CompilationFinal private final int branchTableOffset;
 
-	public WasmBrTable(WasmModule wasmModule, WasmCodeEntry codeEntry, int unwindLevel, int continuationStackPointer, int targetBlockReturnLength, int branchTableOffset) {
+	public WasmBrTable(WasmModule wasmModule, WasmCodeEntry codeEntry, int branchTableOffset) {
 		super(wasmModule, codeEntry);
-		this.unwindLevel = unwindLevel;
-		this.continuationStackPointer = continuationStackPointer;
-		this.targetBlockReturnLength = targetBlockReturnLength;
 		this.branchTableOffset = branchTableOffset;
 	}
 

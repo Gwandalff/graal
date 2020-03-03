@@ -59,9 +59,13 @@ import org.graalvm.wasm.nodes.WasmEmptyNode;
 import org.graalvm.wasm.nodes.WasmNode;
 import org.graalvm.wasm.nodes.WasmRootNode;
 import org.graalvm.wasm.nodes.control.WasmBlockNode;
+import org.graalvm.wasm.nodes.control.WasmBr;
+import org.graalvm.wasm.nodes.control.WasmBrIf;
+import org.graalvm.wasm.nodes.control.WasmBrTable;
 import org.graalvm.wasm.nodes.control.WasmCallStubNode;
 import org.graalvm.wasm.nodes.control.WasmIfNode;
 import org.graalvm.wasm.nodes.control.WasmIndirectCallNode;
+import org.graalvm.wasm.nodes.uncategorized.WasmUnreachable;
 
 import com.oracle.truffle.api.RootCallTarget;
 import com.oracle.truffle.api.Truffle;
@@ -445,9 +449,11 @@ public class BinaryParser extends BinaryStreamParser {
             opcode = read1() & 0xFF;
             switch (opcode) {
                 case Instructions.UNREACHABLE:
+                	currentBlock.addStatement(new WasmUnreachable(module, codeEntry));
                     state.setReachable(false);
                     break;
                 case Instructions.NOP:
+                	currentBlock.addStatement(new WasmNop(module, codeEntry));
                     break;
                 case Instructions.BLOCK: {
                     // Store the reachability of the current block, to restore it later.
@@ -521,6 +527,7 @@ public class BinaryParser extends BinaryStreamParser {
                     state.useIntConstant(continuationReturnLength);
                     // This instruction is stack-polymorphic.
                     state.setReachable(false);
+                    currentBlock.addStatement(new WasmBr(module, codeEntry, unwindLevel, targetStackSize, continuationReturnLength));
                     break;
                 }
                 case Instructions.BR_IF: {
@@ -539,6 +546,7 @@ public class BinaryParser extends BinaryStreamParser {
                     state.useByteConstant(bytesConsumed[0]);
                     state.useIntConstant(state.getStackState(unwindLevel));
                     state.useIntConstant(state.getContinuationReturnLength(unwindLevel));
+                    currentBlock.addStatement(new WasmBrIf(module, codeEntry, unwindLevel, state.getStackState(unwindLevel), state.getContinuationReturnLength(unwindLevel)));
                     break;
                 }
                 case Instructions.BR_TABLE: {
@@ -568,10 +576,11 @@ public class BinaryParser extends BinaryStreamParser {
                     }
                     branchTable[0] = returnLength;
                     // The offset to the branch table.
-                    state.branchTableOffset();
+                    int offset = state.branchTableOffset();
                     state.saveBranchTable(branchTable);
                     // This instruction is stack-polymorphic.
                     state.setReachable(false);
+                    currentBlock.addStatement(new WasmBrTable(module, codeEntry, offset) );
                     break;
                 }
                 case Instructions.RETURN: {
@@ -955,11 +964,6 @@ public class BinaryParser extends BinaryStreamParser {
                     break;
             }
         } while (opcode != Instructions.END && opcode != Instructions.ELSE);
-        currentBlock.initialize(nestedControlTable.toArray(new Node[nestedControlTable.size()]),
-                        callNodes.toArray(new Node[callNodes.size()]),
-                        state.byteConstantOffset() - startByteConstantOffset,
-                        state.intConstantOffset() - startIntConstantOffset, state.longConstantOffset() - startLongConstantOffset,
-                        state.branchTableOffset() - startBranchTableOffset);
         // TODO: Restore this check, when we fix the case where the block contains a return
         // instruction.
         // checkValidStateOnBlockExit(returnTypeId, state, startStackSize);

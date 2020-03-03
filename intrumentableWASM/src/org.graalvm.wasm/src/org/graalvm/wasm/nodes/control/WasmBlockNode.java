@@ -108,10 +108,8 @@ public class WasmBlockNode extends WasmNode{
     @CompilationFinal private final int initialBranchTableOffset;
     @CompilationFinal private ContextReference<WasmContext> rawContextReference;
     @CompilationFinal private final boolean functionBlock;
-    @Children private Node[] nestedControlTable;
-    @Children private Node[] callNodeTable;
     
-    private List<WasmNode> statements;
+    @Children private List<WasmNode> statements;
 
     public WasmBlockNode(WasmModule wasmModule, WasmCodeEntry codeEntry, int startOffset, byte returnTypeId, byte continuationTypeId, int initialStackPointer,
                     int initialByteConstantOffset, int initialIntConstantOffset, int initialLongConstantOffset, int initialBranchTableOffset, boolean functionBlock) {
@@ -124,8 +122,6 @@ public class WasmBlockNode extends WasmNode{
         this.initialIntConstantOffset = initialIntConstantOffset;
         this.initialLongConstantOffset = initialLongConstantOffset;
         this.initialBranchTableOffset = initialBranchTableOffset;
-        this.nestedControlTable = null;
-        this.callNodeTable = null;
         this.statements = new LinkedList<WasmNode>();
         this.functionBlock = functionBlock;
     }
@@ -136,17 +132,6 @@ public class WasmBlockNode extends WasmNode{
             rawContextReference = lookupContextReference(WasmLanguage.class);
         }
         return rawContextReference;
-    }
-
-    @SuppressWarnings("hiding")
-    public void initialize(Node[] nestedControlTable, Node[] callNodeTable, int byteConstantLength,
-                    int intConstantLength, int longConstantLength, int branchTableLength) {
-        this.nestedControlTable = nestedControlTable;
-        this.callNodeTable = callNodeTable;
-        this.byteConstantLength = byteConstantLength;
-        this.intConstantLength = intConstantLength;
-        this.longConstantLength = longConstantLength;
-        this.branchTableLength = branchTableLength;
     }
     
     public void addStatement(WasmNode st) {
@@ -2203,40 +2188,13 @@ public class WasmBlockNode extends WasmNode{
         return condition != 0;
     }*/
 
-    @TruffleBoundary
+    /*@TruffleBoundary
     public void resolveCallNode(int callNodeOffset) {
         final CallTarget target = ((WasmCallStubNode) callNodeTable[callNodeOffset]).function().resolveCallTarget();
         callNodeTable[callNodeOffset] = Truffle.getRuntime().createDirectCallNode(target);
-    }
+    }*/
 
-    @ExplodeLoop
-    private Object[] createArgumentsForCall(VirtualFrame frame, WasmFunction function, int numArgs, int stackPointerOffset) {
-        CompilerAsserts.partialEvaluationConstant(numArgs);
-        Object[] args = new Object[numArgs];
-        int stackPointer = stackPointerOffset;
-        for (int i = numArgs - 1; i >= 0; --i) {
-            stackPointer--;
-            byte type = module().symbolTable().functionTypeArgumentTypeAt(function.typeIndex(), i);
-            switch (type) {
-                case ValueTypes.I32_TYPE:
-                    args[i] = popInt(frame, stackPointer);
-                    break;
-                case ValueTypes.I64_TYPE:
-                    args[i] = pop(frame, stackPointer);
-                    break;
-                case ValueTypes.F32_TYPE:
-                    args[i] = popAsFloat(frame, stackPointer);
-                    break;
-                case ValueTypes.F64_TYPE:
-                    args[i] = popAsDouble(frame, stackPointer);
-                    break;
-                default: {
-                    throw new WasmTrap(this, "Unknown type: " + type);
-                }
-            }
-        }
-        return args;
-    }
+    
 
     @ExplodeLoop
     private void unwindStack(VirtualFrame frame, int initStackPointer, int initialContinuationStackPointer, int targetBlockReturnLength) {
