@@ -57,6 +57,7 @@ import org.graalvm.wasm.WasmCodeEntry;
 import org.graalvm.wasm.WasmContext;
 import org.graalvm.wasm.WasmLanguage;
 import org.graalvm.wasm.WasmVoidResult;
+import org.graalvm.wasm.nodes.control.WasmBlockNode;
 
 @NodeInfo(language = "wasm", description = "The root node of all WebAssembly functions")
 public class WasmRootNode extends RootNode implements WasmNodeInterface {
@@ -93,6 +94,7 @@ public class WasmRootNode extends RootNode implements WasmNodeInterface {
         // This linking should be as late as possible, because a WebAssembly context should
         // be able to parse multiple modules before the code gets run.
         context.linker().tryLink();
+        context.stackpointer = 0;
     }
 
     @Override
@@ -101,6 +103,19 @@ public class WasmRootNode extends RootNode implements WasmNodeInterface {
         tryInitialize(context);
         return executeWithContext(frame, context);
     }
+    
+    private void printBlock(WasmBlockNode block) {
+    	System.out.println("start Block");
+    	WasmNode[] body = block.getEffectiveStatement();
+        for (WasmNode wasmNode : body) {
+			if (wasmNode instanceof WasmBlockNode) {
+				printBlock(((WasmBlockNode) wasmNode));
+			} else {
+				System.out.println(wasmNode);
+			}
+		}
+        System.out.println("end Block");
+    }
 
     public Object executeWithContext(VirtualFrame frame, WasmContext context) {
 
@@ -108,7 +123,7 @@ public class WasmRootNode extends RootNode implements WasmNodeInterface {
         // as local variables, followed by any additional local variables that the function
         // declares. A VirtualFrame contains a special array for the arguments, so we need to move
         // them to the locals.
-        argumentsToLocals(frame);
+         argumentsToLocals(frame);
 
         // WebAssembly rules dictate that a function's locals must be initialized to zero before
         // function invocation. For more information, check the specification:
@@ -117,11 +132,16 @@ public class WasmRootNode extends RootNode implements WasmNodeInterface {
 
         trace("%s EXECUTE", this);
 
+        //printBlock((WasmBlockNode) body);
+        
         body.execute(context, frame);
 
+        context.stackpointer--;
         switch (body.returnTypeId()) {
+        	
             case 0x00:
             case ValueTypes.VOID_TYPE: {
+            	context.stackpointer++;
                 return WasmVoidResult.getInstance();
             }
             case ValueTypes.I32_TYPE: {

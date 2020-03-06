@@ -15,17 +15,16 @@ import com.oracle.truffle.api.frame.VirtualFrame;
 
 public class WasmLocalTee extends WasmNode {
 
-	@CompilationFinal private final byte type;
 	@CompilationFinal private final int index;
 
-	public WasmLocalTee(WasmModule wasmModule, WasmCodeEntry codeEntry, byte type, int index) {
+	public WasmLocalTee(WasmModule wasmModule, WasmCodeEntry codeEntry, int index) {
 		super(wasmModule, codeEntry);
-		this.type = type;
 		this.index = index;
 	}
 
 	@Override
 	public TargetOffset execute(WasmContext context, VirtualFrame frame) {
+		byte type = codeEntry().localType(index);
 		switch (type) {
         case ValueTypes.I32_TYPE: {
             context.stackpointer--;

@@ -60,6 +60,10 @@ public final class TargetOffset {
     public boolean isMinusOne() {
         return value == -1;
     }
+    
+    public boolean isOne() {
+        return value == 1;
+    }
 
     public TargetOffset decrement() {
         final int resultValue = value - 1;

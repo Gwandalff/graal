@@ -39,21 +39,25 @@ public class WasmConst extends WasmNode {
 			pushInt(frame, context.stackpointer, this.intvalue);
 			context.stackpointer++;
             trace("f32.const %f", Float.intBitsToFloat(this.intvalue));
+            //System.out.println("F32 const : "+Float.intBitsToFloat(this.intvalue)+" -> SP :" + context.stackpointer);
 			break;
 		case ValueTypes.F64_TYPE:
 			push(frame, context.stackpointer, this.longvalue);
 			context.stackpointer++;
             trace("f64.const %f", Double.longBitsToDouble(this.longvalue));
+            //System.out.println("F64 const : "+Double.longBitsToDouble(this.longvalue)+" -> SP :" + context.stackpointer);
 			break;
 		case ValueTypes.I32_TYPE:
 			pushInt(frame, context.stackpointer, this.intvalue);
 			context.stackpointer++;
             trace("i32.const 0x%08X (%d)", this.intvalue, this.intvalue);
+            //System.out.println("I32 const : "+intvalue+" -> SP :" + context.stackpointer);
 			break;
 		case ValueTypes.I64_TYPE:
 			push(frame, context.stackpointer, this.longvalue);
 			context.stackpointer++;
             trace("i64.const 0x%08X (%d)", this.longvalue, this.longvalue);
+            //System.out.println("I64 const : "+longvalue+" -> SP :" + context.stackpointer);
 			break;
 
 		default:

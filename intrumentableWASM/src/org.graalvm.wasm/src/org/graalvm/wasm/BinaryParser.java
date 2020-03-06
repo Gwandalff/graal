@@ -40,11 +40,10 @@
  */
 package org.graalvm.wasm;
 
-import static org.graalvm.wasm.TableRegistry.Table;
-
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 
+import org.graalvm.wasm.TableRegistry.Table;
 import org.graalvm.wasm.collection.ByteArrayList;
 import org.graalvm.wasm.constants.CallIndirect;
 import org.graalvm.wasm.constants.ExportIdentifier;
@@ -58,14 +57,69 @@ import org.graalvm.wasm.memory.WasmMemory;
 import org.graalvm.wasm.nodes.WasmEmptyNode;
 import org.graalvm.wasm.nodes.WasmNode;
 import org.graalvm.wasm.nodes.WasmRootNode;
+import org.graalvm.wasm.nodes.bitsOp.WasmAnd;
+import org.graalvm.wasm.nodes.bitsOp.WasmCLZ;
+import org.graalvm.wasm.nodes.bitsOp.WasmOr;
+import org.graalvm.wasm.nodes.bitsOp.WasmPopCnt;
+import org.graalvm.wasm.nodes.bitsOp.WasmRotL;
+import org.graalvm.wasm.nodes.bitsOp.WasmRotR;
+import org.graalvm.wasm.nodes.bitsOp.WasmShL;
+import org.graalvm.wasm.nodes.bitsOp.WasmShR;
+import org.graalvm.wasm.nodes.bitsOp.WasmXor;
+import org.graalvm.wasm.nodes.comparison.WasmEQ;
+import org.graalvm.wasm.nodes.comparison.WasmEQZ;
+import org.graalvm.wasm.nodes.comparison.WasmGE;
+import org.graalvm.wasm.nodes.comparison.WasmGT;
+import org.graalvm.wasm.nodes.comparison.WasmLE;
+import org.graalvm.wasm.nodes.comparison.WasmLT;
+import org.graalvm.wasm.nodes.comparison.WasmNEQ;
 import org.graalvm.wasm.nodes.control.WasmBlockNode;
 import org.graalvm.wasm.nodes.control.WasmBr;
 import org.graalvm.wasm.nodes.control.WasmBrIf;
 import org.graalvm.wasm.nodes.control.WasmBrTable;
 import org.graalvm.wasm.nodes.control.WasmCallStubNode;
+import org.graalvm.wasm.nodes.control.WasmDirectCallNode;
 import org.graalvm.wasm.nodes.control.WasmIfNode;
 import org.graalvm.wasm.nodes.control.WasmIndirectCallNode;
+import org.graalvm.wasm.nodes.control.WasmIndirectCallWrapperNode;
+import org.graalvm.wasm.nodes.control.WasmLoopNode;
+import org.graalvm.wasm.nodes.control.WasmReturn;
+import org.graalvm.wasm.nodes.conversion.WasmConvert;
+import org.graalvm.wasm.nodes.conversion.WasmDemote;
+import org.graalvm.wasm.nodes.conversion.WasmExtend;
+import org.graalvm.wasm.nodes.conversion.WasmPromote;
+import org.graalvm.wasm.nodes.conversion.WasmReinterpret;
+import org.graalvm.wasm.nodes.conversion.WasmTruncConv;
+import org.graalvm.wasm.nodes.conversion.WasmWrap;
+import org.graalvm.wasm.nodes.memory.WasmLoad;
+import org.graalvm.wasm.nodes.memory.WasmMemoryGrow;
+import org.graalvm.wasm.nodes.memory.WasmMemorySize;
+import org.graalvm.wasm.nodes.memory.WasmStore;
+import org.graalvm.wasm.nodes.numeric.WasmAbs;
+import org.graalvm.wasm.nodes.numeric.WasmAdd;
+import org.graalvm.wasm.nodes.numeric.WasmCeil;
+import org.graalvm.wasm.nodes.numeric.WasmCopySign;
+import org.graalvm.wasm.nodes.numeric.WasmDiv;
+import org.graalvm.wasm.nodes.numeric.WasmFloor;
+import org.graalvm.wasm.nodes.numeric.WasmMax;
+import org.graalvm.wasm.nodes.numeric.WasmMin;
+import org.graalvm.wasm.nodes.numeric.WasmMul;
+import org.graalvm.wasm.nodes.numeric.WasmNearest;
+import org.graalvm.wasm.nodes.numeric.WasmNeg;
+import org.graalvm.wasm.nodes.numeric.WasmRem;
+import org.graalvm.wasm.nodes.numeric.WasmSqrt;
+import org.graalvm.wasm.nodes.numeric.WasmSub;
+import org.graalvm.wasm.nodes.numeric.WasmTrunc;
+import org.graalvm.wasm.nodes.uncategorized.WasmDrop;
+import org.graalvm.wasm.nodes.uncategorized.WasmNop;
+import org.graalvm.wasm.nodes.uncategorized.WasmSelect;
 import org.graalvm.wasm.nodes.uncategorized.WasmUnreachable;
+import org.graalvm.wasm.nodes.variables.WasmConst;
+import org.graalvm.wasm.nodes.variables.WasmGlobalGet;
+import org.graalvm.wasm.nodes.variables.WasmGlobalSet;
+import org.graalvm.wasm.nodes.variables.WasmLocalGet;
+import org.graalvm.wasm.nodes.variables.WasmLocalSet;
+import org.graalvm.wasm.nodes.variables.WasmLocalTee;
 
 import com.oracle.truffle.api.RootCallTarget;
 import com.oracle.truffle.api.Truffle;
@@ -84,6 +138,7 @@ public class BinaryParser extends BinaryStreamParser {
     private WasmLanguage language;
     private WasmModule module;
     private byte[] bytesConsumed;
+    private WasmRootNode[] rootNodes;
 
     /**
      * Modules may import, as well as define their own functions. Function IDs are shared among
@@ -101,6 +156,7 @@ public class BinaryParser extends BinaryStreamParser {
         this.module = module;
         this.bytesConsumed = new byte[1];
         this.moduleFunctionIndex = 0;
+        this.rootNodes = null;
     }
 
     WasmModule readModule(WasmContext context) {
@@ -327,7 +383,7 @@ public class BinaryParser extends BinaryStreamParser {
 
     private void readCodeSection(WasmContext context) {
         int numCodeEntries = readVectorLength();
-        WasmRootNode[] rootNodes = new WasmRootNode[numCodeEntries];
+        rootNodes = new WasmRootNode[numCodeEntries];
         for (int entry = 0; entry != numCodeEntries; ++entry) {
             rootNodes[entry] = createCodeEntry(moduleFunctionIndex + entry);
         }
@@ -357,6 +413,19 @@ public class BinaryParser extends BinaryStreamParser {
 
         return rootNode;
     }
+    
+    private void printBlock(WasmBlockNode block) {
+    	WasmNode[] body = block.getEffectiveStatement();
+        for (WasmNode wasmNode : body) {
+			if (wasmNode instanceof WasmBlockNode) {
+				System.out.println("start Nested Block");
+				printBlock(((WasmBlockNode) wasmNode));
+				System.out.println("end Nested Block");
+			} else {
+				System.out.println(wasmNode);
+			}
+		}
+    }
 
     private void readCodeEntry(WasmContext context, int funcIndex, WasmRootNode rootNode) {
         /*
@@ -375,6 +444,7 @@ public class BinaryParser extends BinaryStreamParser {
         Assert.assertIntEqual(state.stackSize(), returnTypeLength,
                         "Stack size must match the return type length at the function end");
         rootNode.setBody(bodyBlock);
+        //printBlock(bodyBlock);
 
         /* Push a frame slot to the frame descriptor for every local. */
         rootNode.codeEntry().initLocalSlots(rootNode.getFrameDescriptor());
@@ -423,7 +493,7 @@ public class BinaryParser extends BinaryStreamParser {
         return readBlockBody(context, codeEntry, state, blockTypeId, blockTypeId, functionBlock);
     }
 
-    private LoopNode readLoop(WasmContext context, WasmCodeEntry codeEntry, ExecutionState state) {
+    private WasmLoopNode readLoop(WasmContext context, WasmCodeEntry codeEntry, ExecutionState state) {
         byte blockTypeId = readBlockType();
         return readLoop(context, codeEntry, state, blockTypeId);
     }
@@ -443,7 +513,7 @@ public class BinaryParser extends BinaryStreamParser {
         // Push the type length of the current block's continuation.
         // Used when branching out of nested blocks (br and br_if instructions).
         state.pushContinuationReturnLength(currentBlock.continuationTypeLength());
-
+        
         int opcode;
         do {
             opcode = read1() & 0xFF;
@@ -466,6 +536,7 @@ public class BinaryParser extends BinaryStreamParser {
                     nestedControlTable.add(nestedBlock);
                     state.popStackState();
                     state.setReachable(reachable);
+                    currentBlock.addStatement(nestedBlock);
                     break;
                 }
                 case Instructions.LOOP: {
@@ -474,10 +545,11 @@ public class BinaryParser extends BinaryStreamParser {
                     // Save the current block's stack pointer, in case we branch out of
                     // the nested block (continuation stack pointer).
                     state.pushStackState(state.stackSize());
-                    LoopNode loopBlock = readLoop(context, codeEntry, state);
+                    WasmLoopNode loopBlock = readLoop(context, codeEntry, state);
                     nestedControlTable.add(loopBlock);
                     state.popStackState();
                     state.setReachable(reachable);
+                    currentBlock.addStatement(loopBlock);
                     break;
                 }
                 case Instructions.IF: {
@@ -494,6 +566,7 @@ public class BinaryParser extends BinaryStreamParser {
                     nestedControlTable.add(ifNode);
                     state.popStackState();
                     state.setReachable(reachable);
+                    currentBlock.addStatement(ifNode);
                     break;
                 }
                 case Instructions.ELSE:
@@ -592,6 +665,7 @@ public class BinaryParser extends BinaryStreamParser {
                     state.useIntConstant(state.getRootBlockReturnLength());
                     // This instruction is stack-polymorphic.
                     state.setReachable(false);
+                    currentBlock.addStatement(new WasmReturn(module, codeEntry) );
                     break;
                 }
                 case Instructions.CALL: {
@@ -610,9 +684,13 @@ public class BinaryParser extends BinaryStreamParser {
                     // then that other module might not have been parsed yet.
                     // Therefore, the call node will be created lazily during linking,
                     // after the call target from the other module exists.
-                    callNodes.add(new WasmCallStubNode(function));
-                    context.linker().resolveCallsite(module, currentBlock, callNodes.size() - 1, function);
-
+                    WasmCallStubNode stub = new WasmCallStubNode(function);
+                    callNodes.add(stub);
+                    WasmDirectCallNode call = new WasmDirectCallNode(module, codeEntry, functionIndex, stub);
+                    call.setCallTarget(Truffle.getRuntime().createDirectCallNode(function.resolveCallTarget()));
+                    context.linker().resolveCallsite(module, call, callNodes.size() - 1, function);
+                    
+                    currentBlock.addStatement(call);
                     break;
                 }
                 case Instructions.CALL_INDIRECT: {
@@ -627,18 +705,22 @@ public class BinaryParser extends BinaryStreamParser {
                     state.pop();
                     state.pop(numArguments);
                     state.push(returnLength);
-                    callNodes.add(WasmIndirectCallNode.create());
+                    WasmIndirectCallNode indirectCall = WasmIndirectCallNode.create();
+                    callNodes.add(indirectCall);
                     Assert.assertIntEqual(read1(), CallIndirect.ZERO_TABLE, "CALL_INDIRECT: Instruction must end with 0x00");
+                    currentBlock.addStatement(new WasmIndirectCallWrapperNode(module, codeEntry, expectedFunctionTypeIndex, indirectCall));
                     break;
                 }
                 case Instructions.DROP:
                     state.pop();
+                    currentBlock.addStatement(new WasmDrop(module, codeEntry) );
                     break;
                 case Instructions.SELECT:
                     // Pop three values from the stack: the condition and the values to select
                     // between.
                     state.pop(3);
                     state.push();
+                    currentBlock.addStatement(new WasmSelect(module, codeEntry) );
                     break;
                 case Instructions.LOCAL_GET: {
                     int localIndex = readLocalIndex(bytesConsumed);
@@ -647,6 +729,7 @@ public class BinaryParser extends BinaryStreamParser {
                     // Assert localIndex exists.
                     Assert.assertIntLessOrEqual(localIndex, codeEntry.numLocals(), "Invalid local index for local.get");
                     state.push();
+                    currentBlock.addStatement(new WasmLocalGet(module, codeEntry, localIndex) );
                     break;
                 }
                 case Instructions.LOCAL_SET: {
@@ -658,6 +741,7 @@ public class BinaryParser extends BinaryStreamParser {
                     // Assert there is a value on the top of the stack.
                     Assert.assertIntGreater(state.stackSize(), 0, "local.set requires at least one element in the stack");
                     state.pop();
+                    currentBlock.addStatement(new WasmLocalSet(module, codeEntry, localIndex) );
                     break;
                 }
                 case Instructions.LOCAL_TEE: {
@@ -668,6 +752,7 @@ public class BinaryParser extends BinaryStreamParser {
                     Assert.assertIntLessOrEqual(localIndex, codeEntry.numLocals(), "Invalid local index for local.tee");
                     // Assert there is a value on the top of the stack.
                     Assert.assertIntGreater(state.stackSize(), 0, "local.tee requires at least one element in the stack");
+                    currentBlock.addStatement(new WasmLocalTee(module, codeEntry, localIndex) );
                     break;
                 }
                 case Instructions.GLOBAL_GET: {
@@ -677,6 +762,7 @@ public class BinaryParser extends BinaryStreamParser {
                     Assert.assertIntLessOrEqual(index, module.symbolTable().maxGlobalIndex(),
                                     "Invalid global index for global.get.");
                     state.push();
+                    currentBlock.addStatement(new WasmGlobalGet(module, codeEntry, index) );
                     break;
                 }
                 case Instructions.GLOBAL_SET: {
@@ -692,6 +778,7 @@ public class BinaryParser extends BinaryStreamParser {
                     // Assert there is a value on the top of the stack.
                     Assert.assertIntGreater(state.stackSize(), 0, "global.set requires at least one element in the stack");
                     state.pop();
+                    currentBlock.addStatement(new WasmGlobalSet(module, codeEntry, index) );
                     break;
                 }
                 case Instructions.I32_LOAD:
@@ -720,6 +807,7 @@ public class BinaryParser extends BinaryStreamParser {
                     Assert.assertIntGreater(state.stackSize(), 0, String.format("load instruction 0x%02X requires at least one element in the stack", opcode));
                     state.pop();   // Base address.
                     state.push();  // Loaded value.
+                    currentBlock.addStatement(new WasmLoad(module, codeEntry, opcode, loadOffset) );
                     break;
                 }
                 case Instructions.I32_STORE:
@@ -742,12 +830,14 @@ public class BinaryParser extends BinaryStreamParser {
                     Assert.assertIntGreater(state.stackSize(), 1, String.format("store instruction 0x%02X requires at least two elements in the stack", opcode));
                     state.pop();  // Value to store.
                     state.pop();  // Base address.
+                    currentBlock.addStatement(new WasmStore(module, codeEntry, opcode, storeOffset) );
                     break;
                 }
                 case Instructions.MEMORY_SIZE: {
                     // Skip the constant 0x00.
                     read1();
                     state.push();
+                    currentBlock.addStatement(new WasmMemorySize(module, codeEntry));
                     break;
                 }
                 case Instructions.MEMORY_GROW: {
@@ -755,6 +845,7 @@ public class BinaryParser extends BinaryStreamParser {
                     read1();
                     state.pop();
                     state.push();
+                    currentBlock.addStatement(new WasmMemoryGrow(module, codeEntry));
                     break;
                 }
                 case Instructions.I32_CONST: {
@@ -762,6 +853,7 @@ public class BinaryParser extends BinaryStreamParser {
                     state.useLongConstant(value);
                     state.useByteConstant(bytesConsumed[0]);
                     state.push();
+                    currentBlock.addStatement(new WasmConst(module, codeEntry, ValueTypes.I32_TYPE, value));
                     break;
                 }
                 case Instructions.I64_CONST: {
@@ -769,195 +861,647 @@ public class BinaryParser extends BinaryStreamParser {
                     state.useLongConstant(value);
                     state.useByteConstant(bytesConsumed[0]);
                     state.push();
+                    currentBlock.addStatement(new WasmConst(module, codeEntry, ValueTypes.I64_TYPE, value));
                     break;
                 }
                 case Instructions.F32_CONST: {
                     int value = readFloatAsInt32();
                     state.useLongConstant(value);
                     state.push();
+                    currentBlock.addStatement(new WasmConst(module, codeEntry, ValueTypes.F32_TYPE, value));
                     break;
                 }
                 case Instructions.F64_CONST: {
                     long value = readFloatAsInt64();
                     state.useLongConstant(value);
                     state.push();
+                    currentBlock.addStatement(new WasmConst(module, codeEntry, ValueTypes.F64_TYPE, value));
                     break;
                 }
                 case Instructions.I32_EQZ:
                     state.pop();
                     state.push();
+                    currentBlock.addStatement(new WasmEQZ(module, codeEntry, ValueTypes.I32_TYPE));
                     break;
                 case Instructions.I32_EQ:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmEQ(module, codeEntry, ValueTypes.I32_TYPE));
+                    break;
                 case Instructions.I32_NE:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmNEQ(module, codeEntry, ValueTypes.I32_TYPE));
+                    break;
                 case Instructions.I32_LT_S:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmLT(module, codeEntry, ValueTypes.I32_TYPE, true));
+                    break;
                 case Instructions.I32_LT_U:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmLT(module, codeEntry, ValueTypes.I32_TYPE, false));
+                    break;
                 case Instructions.I32_GT_S:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmGT(module, codeEntry, ValueTypes.I32_TYPE, true));
+                    break;
                 case Instructions.I32_GT_U:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmGT(module, codeEntry, ValueTypes.I32_TYPE, false));
+                    break;
                 case Instructions.I32_LE_S:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmLE(module, codeEntry, ValueTypes.I32_TYPE, true));
+                    break;
                 case Instructions.I32_LE_U:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmLE(module, codeEntry, ValueTypes.I32_TYPE, false));
+                    break;
                 case Instructions.I32_GE_S:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmGE(module, codeEntry, ValueTypes.I32_TYPE, true));
+                    break;
                 case Instructions.I32_GE_U:
                     state.pop();
                     state.pop();
                     state.push();
+                    currentBlock.addStatement(new WasmGE(module, codeEntry, ValueTypes.I32_TYPE, false));
                     break;
                 case Instructions.I64_EQZ:
                     state.pop();
                     state.push();
+                    currentBlock.addStatement(new WasmEQZ(module, codeEntry, ValueTypes.I64_TYPE));
                     break;
                 case Instructions.I64_EQ:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmEQ(module, codeEntry, ValueTypes.I64_TYPE));
+                    break;
                 case Instructions.I64_NE:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmNEQ(module, codeEntry, ValueTypes.I64_TYPE));
+                    break;
                 case Instructions.I64_LT_S:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmLT(module, codeEntry, ValueTypes.I64_TYPE, true));
+                    break;
                 case Instructions.I64_LT_U:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmLT(module, codeEntry, ValueTypes.I64_TYPE, false));
+                    break;
                 case Instructions.I64_GT_S:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmGT(module, codeEntry, ValueTypes.I64_TYPE, true));
+                    break;
                 case Instructions.I64_GT_U:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmGT(module, codeEntry, ValueTypes.I64_TYPE, false));
+                    break;
                 case Instructions.I64_LE_S:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmLE(module, codeEntry, ValueTypes.I64_TYPE, true));
+                    break;
                 case Instructions.I64_LE_U:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmLE(module, codeEntry, ValueTypes.I64_TYPE, false));
+                    break;
                 case Instructions.I64_GE_S:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmGE(module, codeEntry, ValueTypes.I64_TYPE, true));
+                    break;
                 case Instructions.I64_GE_U:
                     state.pop();
                     state.pop();
                     state.push();
+                    currentBlock.addStatement(new WasmGE(module, codeEntry, ValueTypes.I64_TYPE, false));
                     break;
                 case Instructions.F32_EQ:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmEQ(module, codeEntry, ValueTypes.F32_TYPE));
+                    break;
                 case Instructions.F32_NE:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmNEQ(module, codeEntry, ValueTypes.F32_TYPE));
+                    break;
                 case Instructions.F32_LT:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmLT(module, codeEntry, ValueTypes.F32_TYPE));
+                    break;
                 case Instructions.F32_GT:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmGT(module, codeEntry, ValueTypes.F32_TYPE));
+                    break;
                 case Instructions.F32_LE:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmLE(module, codeEntry, ValueTypes.F32_TYPE));
+                    break;
                 case Instructions.F32_GE:
                     state.pop();
                     state.pop();
                     state.push();
+                    currentBlock.addStatement(new WasmGE(module, codeEntry, ValueTypes.F32_TYPE));
                     break;
                 case Instructions.F64_EQ:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmEQ(module, codeEntry, ValueTypes.F64_TYPE));
+                    break;
                 case Instructions.F64_NE:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmNEQ(module, codeEntry, ValueTypes.F64_TYPE));
+                    break;
                 case Instructions.F64_LT:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmLT(module, codeEntry, ValueTypes.F64_TYPE));
+                    break;
                 case Instructions.F64_GT:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmGT(module, codeEntry, ValueTypes.F64_TYPE));
+                    break;
                 case Instructions.F64_LE:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmLE(module, codeEntry, ValueTypes.F64_TYPE));
+                    break;
                 case Instructions.F64_GE:
                     state.pop();
                     state.pop();
                     state.push();
+                    currentBlock.addStatement(new WasmGE(module, codeEntry, ValueTypes.F64_TYPE));
                     break;
                 case Instructions.I32_CLZ:
+                	state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmCLZ(module, codeEntry, ValueTypes.I32_TYPE));
+                    break;
                 case Instructions.I32_CTZ:
+                	state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmCLZ(module, codeEntry, ValueTypes.I32_TYPE));
+                    break;
                 case Instructions.I32_POPCNT:
                     state.pop();
                     state.push();
+                    currentBlock.addStatement(new WasmPopCnt(module, codeEntry, ValueTypes.I32_TYPE));
                     break;
                 case Instructions.I32_ADD:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmAdd(module, codeEntry, ValueTypes.I32_TYPE));
+                    break;
                 case Instructions.I32_SUB:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmSub(module, codeEntry, ValueTypes.I32_TYPE));
+                    break;
                 case Instructions.I32_MUL:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmMul(module, codeEntry, ValueTypes.I32_TYPE));
+                    break;
                 case Instructions.I32_DIV_S:
                 case Instructions.I32_DIV_U:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmDiv(module, codeEntry, ValueTypes.I32_TYPE, opcode == Instructions.I32_DIV_S));
+                    break;
                 case Instructions.I32_REM_S:
                 case Instructions.I32_REM_U:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmRem(module, codeEntry, ValueTypes.I32_TYPE, opcode == Instructions.I32_DIV_S));
+                    break;
                 case Instructions.I32_AND:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmAnd(module, codeEntry, ValueTypes.I32_TYPE));
+                    break;
                 case Instructions.I32_OR:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmOr(module, codeEntry, ValueTypes.I32_TYPE));
+                    break;
                 case Instructions.I32_XOR:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmXor(module, codeEntry, ValueTypes.I32_TYPE));
+                    break;
                 case Instructions.I32_SHL:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmShL(module, codeEntry, ValueTypes.I32_TYPE));
+                    break;
                 case Instructions.I32_SHR_S:
                 case Instructions.I32_SHR_U:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmShR(module, codeEntry, ValueTypes.I32_TYPE, opcode == Instructions.I32_DIV_S));
+                    break;
                 case Instructions.I32_ROTL:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmRotL(module, codeEntry, ValueTypes.I32_TYPE));
+                    break;
                 case Instructions.I32_ROTR:
                     state.pop();
                     state.pop();
                     state.push();
+                    currentBlock.addStatement(new WasmRotR(module, codeEntry, ValueTypes.I32_TYPE));
                     break;
                 case Instructions.I64_CLZ:
+                	state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmCLZ(module, codeEntry, ValueTypes.I64_TYPE));
+                    break;
                 case Instructions.I64_CTZ:
+                	state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmCLZ(module, codeEntry, ValueTypes.I64_TYPE));
+                    break;
                 case Instructions.I64_POPCNT:
                     state.pop();
                     state.push();
+                    currentBlock.addStatement(new WasmPopCnt(module, codeEntry, ValueTypes.I64_TYPE));
                     break;
                 case Instructions.I64_ADD:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmAdd(module, codeEntry, ValueTypes.I64_TYPE));
+                    break;
                 case Instructions.I64_SUB:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmSub(module, codeEntry, ValueTypes.I64_TYPE));
+                    break;
                 case Instructions.I64_MUL:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmMul(module, codeEntry, ValueTypes.I64_TYPE));
+                    break;
                 case Instructions.I64_DIV_S:
                 case Instructions.I64_DIV_U:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmDiv(module, codeEntry, ValueTypes.I64_TYPE, opcode == Instructions.I64_DIV_S));
+                    break;
                 case Instructions.I64_REM_S:
                 case Instructions.I64_REM_U:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmRem(module, codeEntry, ValueTypes.I64_TYPE, opcode == Instructions.I64_DIV_S));
+                    break;
                 case Instructions.I64_AND:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmAnd(module, codeEntry, ValueTypes.I64_TYPE));
+                    break;
                 case Instructions.I64_OR:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmOr(module, codeEntry, ValueTypes.I64_TYPE));
+                    break;
                 case Instructions.I64_XOR:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmXor(module, codeEntry, ValueTypes.I64_TYPE));
+                    break;
                 case Instructions.I64_SHL:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmShL(module, codeEntry, ValueTypes.I64_TYPE));
+                    break;
                 case Instructions.I64_SHR_S:
                 case Instructions.I64_SHR_U:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmShR(module, codeEntry, ValueTypes.I64_TYPE, opcode == Instructions.I64_DIV_S));
+                    break;
                 case Instructions.I64_ROTL:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmRotL(module, codeEntry, ValueTypes.I64_TYPE));
+                    break;
                 case Instructions.I64_ROTR:
                     state.pop();
                     state.pop();
                     state.push();
+                    currentBlock.addStatement(new WasmRotR(module, codeEntry, ValueTypes.I64_TYPE));
                     break;
                 case Instructions.F32_ABS:
+                	state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmAbs(module, codeEntry, ValueTypes.F32_TYPE));
+                    break;
                 case Instructions.F32_NEG:
+                	state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmNeg(module, codeEntry, ValueTypes.F32_TYPE));
+                    break;
                 case Instructions.F32_CEIL:
+                	state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmCeil(module, codeEntry, ValueTypes.F32_TYPE));
+                    break;
                 case Instructions.F32_FLOOR:
+                	state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmFloor(module, codeEntry, ValueTypes.F32_TYPE));
+                    break;
                 case Instructions.F32_TRUNC:
+                	state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmTrunc(module, codeEntry, ValueTypes.F32_TYPE));
+                    break;
                 case Instructions.F32_NEAREST:
+                	state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmNearest(module, codeEntry, ValueTypes.F32_TYPE));
+                    break;
                 case Instructions.F32_SQRT:
                     state.pop();
                     state.push();
+                    currentBlock.addStatement(new WasmSqrt(module, codeEntry, ValueTypes.F32_TYPE));
                     break;
                 case Instructions.F32_ADD:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmAdd(module, codeEntry, ValueTypes.F32_TYPE));
+                    break;
                 case Instructions.F32_SUB:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmSub(module, codeEntry, ValueTypes.F32_TYPE));
+                    break;
                 case Instructions.F32_MUL:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmMul(module, codeEntry, ValueTypes.F32_TYPE));
+                    break;
                 case Instructions.F32_DIV:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmDiv(module, codeEntry, ValueTypes.F32_TYPE));
+                    break;
                 case Instructions.F32_MIN:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmMin(module, codeEntry, ValueTypes.F32_TYPE));
+                    break;
                 case Instructions.F32_MAX:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmMax(module, codeEntry, ValueTypes.F32_TYPE));
+                    break;
                 case Instructions.F32_COPYSIGN:
                     state.pop();
                     state.pop();
                     state.push();
+                    currentBlock.addStatement(new WasmCopySign(module, codeEntry, ValueTypes.F32_TYPE));
                     break;
                 case Instructions.F64_ABS:
+                	state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmAbs(module, codeEntry, ValueTypes.F64_TYPE));
+                    break;
                 case Instructions.F64_NEG:
+                	state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmNeg(module, codeEntry, ValueTypes.F64_TYPE));
+                    break;
                 case Instructions.F64_CEIL:
+                	state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmCeil(module, codeEntry, ValueTypes.F64_TYPE));
+                    break;
                 case Instructions.F64_FLOOR:
+                	state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmFloor(module, codeEntry, ValueTypes.F64_TYPE));
+                    break;
                 case Instructions.F64_TRUNC:
+                	state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmTrunc(module, codeEntry, ValueTypes.F64_TYPE));
+                    break;
                 case Instructions.F64_NEAREST:
+                	state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmNearest(module, codeEntry, ValueTypes.F64_TYPE));
+                    break;
                 case Instructions.F64_SQRT:
                     state.pop();
                     state.push();
+                    currentBlock.addStatement(new WasmSqrt(module, codeEntry, ValueTypes.F64_TYPE));
                     break;
                 case Instructions.F64_ADD:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmAdd(module, codeEntry, ValueTypes.F64_TYPE));
+                    break;
                 case Instructions.F64_SUB:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmSub(module, codeEntry, ValueTypes.F64_TYPE));
+                    break;
                 case Instructions.F64_MUL:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmMul(module, codeEntry, ValueTypes.F64_TYPE));
+                    break;
                 case Instructions.F64_DIV:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmDiv(module, codeEntry, ValueTypes.F64_TYPE));
+                    break;
                 case Instructions.F64_MIN:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmMin(module, codeEntry, ValueTypes.F64_TYPE));
+                    break;
                 case Instructions.F64_MAX:
+                	state.pop();
+                    state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmMax(module, codeEntry, ValueTypes.F64_TYPE));
+                    break;
                 case Instructions.F64_COPYSIGN:
                     state.pop();
                     state.pop();
                     state.push();
+                    currentBlock.addStatement(new WasmCopySign(module, codeEntry, ValueTypes.F64_TYPE));
                     break;
                 case Instructions.I32_WRAP_I64:
+                	state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmWrap(module, codeEntry));
+                    break;
                 case Instructions.I32_TRUNC_F32_S:
                 case Instructions.I32_TRUNC_F32_U:
+                	state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmTruncConv(module, codeEntry, ValueTypes.F32_TYPE, ValueTypes.I32_TYPE));
+                    break;
                 case Instructions.I32_TRUNC_F64_S:
                 case Instructions.I32_TRUNC_F64_U:
+                	state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmTruncConv(module, codeEntry, ValueTypes.F64_TYPE, ValueTypes.I32_TYPE));
+                    break;
                 case Instructions.I64_EXTEND_I32_S:
                 case Instructions.I64_EXTEND_I32_U:
+                	state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmExtend(module, codeEntry, opcode == Instructions.I64_EXTEND_I32_S));
+                    break;
                 case Instructions.I64_TRUNC_F32_S:
                 case Instructions.I64_TRUNC_F32_U:
+                	state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmTruncConv(module, codeEntry, ValueTypes.F32_TYPE, ValueTypes.I64_TYPE));
+                    break;
                 case Instructions.I64_TRUNC_F64_S:
                 case Instructions.I64_TRUNC_F64_U:
+                	state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmTruncConv(module, codeEntry, ValueTypes.F64_TYPE, ValueTypes.I64_TYPE));
+                    break;
                 case Instructions.F32_CONVERT_I32_S:
                 case Instructions.F32_CONVERT_I32_U:
+                	state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmConvert(module, codeEntry, ValueTypes.I32_TYPE, ValueTypes.F32_TYPE));
+                    break;
                 case Instructions.F32_CONVERT_I64_S:
                 case Instructions.F32_CONVERT_I64_U:
+                	state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmConvert(module, codeEntry, ValueTypes.I64_TYPE, ValueTypes.F32_TYPE));
+                    break;
                 case Instructions.F32_DEMOTE_F64:
+                	state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmDemote(module, codeEntry));
+                    break;
                 case Instructions.F64_CONVERT_I32_S:
                 case Instructions.F64_CONVERT_I32_U:
+                	state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmConvert(module, codeEntry, ValueTypes.I32_TYPE, ValueTypes.F64_TYPE));
+                    break;
                 case Instructions.F64_CONVERT_I64_S:
                 case Instructions.F64_CONVERT_I64_U:
+                	state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmConvert(module, codeEntry, ValueTypes.I64_TYPE, ValueTypes.F64_TYPE));
+                    break;
                 case Instructions.F64_PROMOTE_F32:
+                	state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmPromote(module, codeEntry));
+                    break;
                 case Instructions.I32_REINTERPRET_F32:
+                	state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmReinterpret(module, codeEntry, ValueTypes.F32_TYPE, ValueTypes.I32_TYPE));
+                    break;
                 case Instructions.I64_REINTERPRET_F64:
+                	state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmReinterpret(module, codeEntry, ValueTypes.F64_TYPE, ValueTypes.I64_TYPE));
+                    break;
                 case Instructions.F32_REINTERPRET_I32:
+                	state.pop();
+                    state.push();
+                    currentBlock.addStatement(new WasmReinterpret(module, codeEntry, ValueTypes.I32_TYPE, ValueTypes.F32_TYPE));
+                    break;
                 case Instructions.F64_REINTERPRET_I64:
                     state.pop();
                     state.push();
+                    currentBlock.addStatement(new WasmReinterpret(module, codeEntry, ValueTypes.I64_TYPE, ValueTypes.F64_TYPE));
                     break;
                 default:
                     Assert.fail(Assert.format("Unknown opcode: 0x%02x", opcode));
@@ -971,14 +1515,14 @@ public class BinaryParser extends BinaryStreamParser {
         // Pop the current block return length in the return lengths stack.
         // Used when branching out of nested blocks (br and br_if instructions).
         state.popContinuationReturnLength();
-
+        currentBlock.buildEffectiveStatements();
         return currentBlock;
     }
 
-    private LoopNode readLoop(WasmContext context, WasmCodeEntry codeEntry, ExecutionState state, byte returnTypeId) {
+    private WasmLoopNode readLoop(WasmContext context, WasmCodeEntry codeEntry, ExecutionState state, byte returnTypeId) {
         int initialStackPointer = state.stackSize();
         WasmBlockNode loopBlock = readBlockBody(context, codeEntry, state, returnTypeId, ValueTypes.VOID_TYPE, false);
-
+        WasmLoopNode loop = new WasmLoopNode(module, codeEntry, loopBlock);
         // TODO: Hack to correctly set the stack pointer for abstract interpretation.
         // If a block has branch instructions that target "shallower" blocks which return no value,
         // then it can leave no values in the stack, which is invalid for our abstract
@@ -986,8 +1530,8 @@ public class BinaryParser extends BinaryStreamParser {
         // Correct the stack pointer to the value it would have in case there were no branch
         // instructions.
         state.setStackSize(returnTypeId != ValueTypes.VOID_TYPE ? initialStackPointer + 1 : initialStackPointer);
-
-        return Truffle.getRuntime().createLoopNode((RepeatingNode) loopBlock);
+        return loop;
+        //return Truffle.getRuntime().createLoopNode((RepeatingNode) loop);
     }
 
     private WasmIfNode readIf(WasmContext context, WasmCodeEntry codeEntry, ExecutionState state) {

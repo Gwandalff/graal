@@ -11,8 +11,11 @@ import org.graalvm.wasm.constants.TargetOffset;
 import org.graalvm.wasm.exception.WasmTrap;
 import org.graalvm.wasm.nodes.WasmNode;
 
+import com.oracle.truffle.api.CallTarget;
 import com.oracle.truffle.api.CompilerAsserts;
 import com.oracle.truffle.api.CompilerDirectives.CompilationFinal;
+import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
+import com.oracle.truffle.api.Truffle;
 import com.oracle.truffle.api.frame.VirtualFrame;
 import com.oracle.truffle.api.nodes.DirectCallNode;
 import com.oracle.truffle.api.nodes.ExplodeLoop;
@@ -20,11 +23,12 @@ import com.oracle.truffle.api.nodes.ExplodeLoop;
 public class WasmDirectCallNode extends WasmNode {
 	
 	@CompilationFinal private final int functionIndex;
-	@CompilationFinal private final DirectCallNode callNode;
+	@CompilationFinal private final WasmCallStubNode stub;
+	@CompilationFinal private DirectCallNode callNode;
 
-	public WasmDirectCallNode(WasmModule wasmModule, WasmCodeEntry codeEntry, int functionIndex, DirectCallNode callNode) {
+	public WasmDirectCallNode(WasmModule wasmModule, WasmCodeEntry codeEntry, int functionIndex, WasmCallStubNode stub) {
 		super(wasmModule, codeEntry);
-		this.callNode = callNode;
+		this.stub = stub;
 		this.functionIndex = functionIndex;
 	}
 
@@ -37,9 +41,11 @@ public class WasmDirectCallNode extends WasmNode {
         Object[] args = createArgumentsForCall(frame, function, numArgs, context.stackpointer);
         context.stackpointer -= args.length;
 
+        int stackSave = context.stackpointer;
         trace("direct call to function %s (%d args)", function, args.length);
         Object result = callNode.call(args);
         trace("return from direct call to function %s : %s", function, result);
+        context.stackpointer = stackSave;
         // At the moment, WebAssembly functions may return up to one value.
         // As per the WebAssembly specification,
         // this restriction may be lifted in the future.
@@ -74,6 +80,16 @@ public class WasmDirectCallNode extends WasmNode {
         }
 		return null;
 	}
+	
+	public void setCallTarget(DirectCallNode call) {
+		callNode = call;
+	}
+	
+	@TruffleBoundary
+    public void resolveCallNode(int callNodeOffset) {
+        final CallTarget target = stub.function().resolveCallTarget();
+        callNode = Truffle.getRuntime().createDirectCallNode(target);
+    }
 	
 	@ExplodeLoop
     private Object[] createArgumentsForCall(VirtualFrame frame, WasmFunction function, int numArgs, int stackPointerOffset) {

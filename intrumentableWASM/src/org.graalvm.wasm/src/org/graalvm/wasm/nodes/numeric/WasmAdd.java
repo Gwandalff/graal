@@ -25,6 +25,7 @@ public class WasmAdd extends WasmNode {
 
 	@Override
 	public TargetOffset execute(WasmContext context, VirtualFrame frame) {
+		//System.out.println("ADD starting SP :" + context.stackpointer);
 		switch (type) {
 		case ValueTypes.I32_TYPE: {
 			context.stackpointer--;
@@ -73,6 +74,7 @@ public class WasmAdd extends WasmNode {
 		default:
 			throw new WasmTrap(this, "Add cannot have the void type.");
 		}
+		//System.out.println("ADD ending SP :" + context.stackpointer);
 		return null;
 	}
 

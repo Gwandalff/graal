@@ -15,18 +15,17 @@ import com.oracle.truffle.api.frame.VirtualFrame;
 
 public class WasmLocalGet extends WasmNode {
 	
-	@CompilationFinal private final byte type;
 	@CompilationFinal private final int index;
 
-	public WasmLocalGet(WasmModule wasmModule, WasmCodeEntry codeEntry, byte type, int index) {
+	public WasmLocalGet(WasmModule wasmModule, WasmCodeEntry codeEntry, int index) {
 		super(wasmModule, codeEntry);
-		this.type = type;
 		this.index = index;
 	}
 
 	@Override
 	public TargetOffset execute(WasmContext context, VirtualFrame frame) {
-        switch (this.type) {
+		byte type = codeEntry().localType(index);
+        switch (type) {
             case ValueTypes.I32_TYPE: {
                 int value = getInt(frame, index);
                 pushInt(frame, context.stackpointer, value);

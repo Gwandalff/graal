@@ -21,7 +21,7 @@ public class WasmBrIf extends WasmNode {
 
 	public WasmBrIf(WasmModule wasmModule, WasmCodeEntry codeEntry, int unwindLevel, int continuationStackPointer, int targetBlockReturnLength) {
 		super(wasmModule, codeEntry);
-		this.unwindLevel = unwindLevel;
+		this.unwindLevel = unwindLevel+1;
 		this.continuationStackPointer = continuationStackPointer;
 		this.targetBlockReturnLength = targetBlockReturnLength;
 	}
@@ -36,7 +36,7 @@ public class WasmBrIf extends WasmNode {
 
             // Populate the stack with the return values of the current block (the one
             // we are escaping from).
-            unwindStack(frame, context.stackpointer, continuationStackPointer, targetBlockReturnLength);
+            unwindStack(frame, context, context.stackpointer, continuationStackPointer, targetBlockReturnLength);
 
             return unwindCounter;
         }
@@ -44,7 +44,7 @@ public class WasmBrIf extends WasmNode {
 	}
 	
 	@ExplodeLoop
-    private void unwindStack(VirtualFrame frame, int initStackPointer, int initialContinuationStackPointer, int targetBlockReturnLength) {
+    private void unwindStack(VirtualFrame frame, WasmContext context, int initStackPointer, int initialContinuationStackPointer, int targetBlockReturnLength) {
         // TODO: If the targetBlockReturnLength could ever be > 1, this would invert the stack
         // values.
         // The spec seems to imply that the operand stack should not be inverted.
@@ -57,6 +57,7 @@ public class WasmBrIf extends WasmNode {
             push(frame, continuationStackPointer, value);
             continuationStackPointer++;
         }
+        context.stackpointer = continuationStackPointer;
     }
 	
 	private boolean popCondition(VirtualFrame frame, int stackpointer) {

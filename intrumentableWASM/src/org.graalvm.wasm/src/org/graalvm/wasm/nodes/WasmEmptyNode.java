@@ -58,7 +58,7 @@ public final class WasmEmptyNode extends WasmNode {
     @Override
     public TargetOffset execute(WasmContext context, VirtualFrame frame) {
         // A return value of -1 means no branch to be taken.
-        return TargetOffset.MINUS_ONE;
+        return TargetOffset.ZERO;
     }
 
     @Override

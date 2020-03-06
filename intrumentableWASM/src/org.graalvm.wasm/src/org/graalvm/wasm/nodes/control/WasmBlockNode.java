@@ -43,6 +43,7 @@ package org.graalvm.wasm.nodes.control;
 import static org.graalvm.wasm.WasmTracing.trace;
 import static org.graalvm.wasm.constants.Instructions.*;
 
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -108,8 +109,10 @@ public class WasmBlockNode extends WasmNode{
     @CompilationFinal private final int initialBranchTableOffset;
     @CompilationFinal private ContextReference<WasmContext> rawContextReference;
     @CompilationFinal private final boolean functionBlock;
+    private boolean internalFlag = false;
     
-    @Children private List<WasmNode> statements;
+    private List<WasmNode> statements;
+    @Children private WasmNode[] effectiveStatements;
 
     public WasmBlockNode(WasmModule wasmModule, WasmCodeEntry codeEntry, int startOffset, byte returnTypeId, byte continuationTypeId, int initialStackPointer,
                     int initialByteConstantOffset, int initialIntConstantOffset, int initialLongConstantOffset, int initialBranchTableOffset, boolean functionBlock) {
@@ -137,6 +140,19 @@ public class WasmBlockNode extends WasmNode{
     public void addStatement(WasmNode st) {
     	this.statements.add(st);
     }
+    
+    public void buildEffectiveStatements() {
+    	this.effectiveStatements = new WasmNode[statements.size()];
+    	int i = 0;
+    	for (WasmNode wasmNode : statements) {
+			this.effectiveStatements[i] = wasmNode;
+    		i++;
+		}
+    }
+    
+    public WasmNode[] getEffectiveStatement() {
+    	return this.effectiveStatements;
+    }
 
     @Override
     public int byteConstantLength() {
@@ -163,20 +179,45 @@ public class WasmBlockNode extends WasmNode{
     }
 
     @Override
-    @ExplodeLoop(kind = ExplodeLoop.LoopExplosionKind.FULL_EXPLODE_UNTIL_RETURN)
+    //@ExplodeLoop(kind = ExplodeLoop.LoopExplosionKind.FULL_EXPLODE_UNTIL_RETURN)
 	public TargetOffset execute(WasmContext context, VirtualFrame frame) {
-		for (WasmNode statement : statements) {
+    	trace("block START");
+    	//System.out.println("block START");
+    	for (int i = 0; i < effectiveStatements.length; i++) {
+    		//System.out.println("start Statement "+i+"/"+effectiveStatements.length);
+			WasmNode statement = effectiveStatements[i];
+			//System.out.println("statement : " + statement.toString());
+			//System.out.println("before statement SP : " + context.stackpointer);
+			final boolean isLoop = internalFlag;
+			internalFlag = false;
 			TargetOffset br = statement.execute(context, frame);
+			internalFlag = isLoop;
+			//System.out.println("after statement SP : " + context.stackpointer);
+			//System.out.println("Returned offset :" + (br==null?0:br.value));
 			if(br != null && !br.isZero()) {
 				if(br.isMinusOne()) {
+					trace("block END");
+					//System.out.println("block END");
 					return functionBlock ? TargetOffset.ZERO : br;
 				} else {
-					return br.decrement();
+					trace("block END");
+					//System.out.println("block END");
+					return internalFlag ? br : br.decrement();
 				}
 			}
+			//System.out.println("end Statement "+i+"/"+effectiveStatements.length);
 		}
+    	//System.out.println("Block END");
+		trace("block END");
 		return TargetOffset.ZERO;
 	}
+    
+    public TargetOffset executeLoop(WasmContext context, VirtualFrame frame) {
+    	this.internalFlag = true;
+    	TargetOffset out = execute(context, frame);
+    	this.internalFlag = false;
+    	return out;
+    }
     
     /*@ExplodeLoop(kind = ExplodeLoop.LoopExplosionKind.FULL_EXPLODE_UNTIL_RETURN)
     public TargetOffset executeOld(WasmContext context, VirtualFrame frame) {
@@ -2212,7 +2253,7 @@ public class WasmBlockNode extends WasmNode{
         }
     }
 
-    @SuppressWarnings("unused")
+    /*@SuppressWarnings("unused")
     public static boolean shouldContinue(Object value) {
         // This is a trick to avoid the load of the value field.
         // In particular, we avoid:
@@ -2223,7 +2264,7 @@ public class WasmBlockNode extends WasmNode{
         // pattern with a diamond and a loop exit check,
         // when br_if occurs in the loop body.
         return value == TargetOffset.ZERO;
-    }
+    }*/
 
     @Override
     public byte returnTypeId() {

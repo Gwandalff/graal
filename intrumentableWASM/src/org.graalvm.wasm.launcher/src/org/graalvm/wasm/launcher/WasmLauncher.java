@@ -107,7 +107,9 @@ public class WasmLauncher extends AbstractLanguageLauncher {
             if (entryPoint == null) {
                 throw abort("No entry-point function found, cannot start program.");
             }
-            return entryPoint.execute().asInt();
+            int val = entryPoint.execute().asInt();
+            System.out.println("value  : int " + val);
+            return val;
         } catch (IOException e) {
             throw abort(String.format("Error loading file '%s': %s", file, e.getMessage()));
         }

@@ -32,19 +32,19 @@ public class WasmBrTable extends WasmNode {
         // but since we are returning, it does not really matter.
 
         int returnTypeLength = table[0];
-        int unwindCounterValue = table[1 + 2 * index];
+        int unwindCounterValue = table[1 + 2 * index]+1;
         int continuationStackPointer = table[1 + 2 * index + 1];
         trace("br_table, target = %d", unwindCounterValue);
 
         // Populate the stack with the return values of the current block (the one we
         // are escaping from).
-        unwindStack(frame, context.stackpointer, continuationStackPointer, returnTypeLength);
+        unwindStack(frame, context, context.stackpointer, continuationStackPointer, returnTypeLength);
 
         return TargetOffset.createOrCached(unwindCounterValue);
 	}
 	
 	@ExplodeLoop
-    private void unwindStack(VirtualFrame frame, int initStackPointer, int initialContinuationStackPointer, int targetBlockReturnLength) {
+    private void unwindStack(VirtualFrame frame, WasmContext context, int initStackPointer, int initialContinuationStackPointer, int targetBlockReturnLength) {
         // TODO: If the targetBlockReturnLength could ever be > 1, this would invert the stack
         // values.
         // The spec seems to imply that the operand stack should not be inverted.
@@ -57,6 +57,7 @@ public class WasmBrTable extends WasmNode {
             push(frame, continuationStackPointer, value);
             continuationStackPointer++;
         }
+        context.stackpointer = continuationStackPointer;
     }
 
 	@Override

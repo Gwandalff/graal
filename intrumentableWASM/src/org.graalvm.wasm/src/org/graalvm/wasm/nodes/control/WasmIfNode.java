@@ -70,8 +70,8 @@ public final class WasmIfNode extends WasmNode {
 
     @Override
     public TargetOffset execute(WasmContext context, VirtualFrame frame) {
-        int stackPointer = initialStackPointer - 1;
-        if (condition.profile(popInt(frame, stackPointer) != 0)) {
+        context.stackpointer--;
+        if (condition.profile(popInt(frame, context.stackpointer) != 0)) {
             trace("taking if branch");
             return trueBranch.execute(context, frame);
         } else {

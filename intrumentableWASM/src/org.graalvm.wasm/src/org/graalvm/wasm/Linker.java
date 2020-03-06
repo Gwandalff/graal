@@ -40,34 +40,34 @@
  */
 package org.graalvm.wasm;
 
-import static org.graalvm.wasm.Linker.ResolutionDag.CallsiteSym;
-import static org.graalvm.wasm.Linker.ResolutionDag.CodeEntrySym;
-import static org.graalvm.wasm.Linker.ResolutionDag.ElemSym;
-import static org.graalvm.wasm.Linker.ResolutionDag.ExportFunctionSym;
-import static org.graalvm.wasm.Linker.ResolutionDag.ExportGlobalSym;
-import static org.graalvm.wasm.Linker.ResolutionDag.ExportTableSym;
-import static org.graalvm.wasm.Linker.ResolutionDag.ImportFunctionSym;
-import static org.graalvm.wasm.Linker.ResolutionDag.ImportGlobalSym;
-import static org.graalvm.wasm.Linker.ResolutionDag.ImportTableSym;
-import static org.graalvm.wasm.Linker.ResolutionDag.InitializeGlobalSym;
 import static org.graalvm.wasm.Linker.ResolutionDag.NO_RESOLVE_ACTION;
-import static org.graalvm.wasm.TableRegistry.Table;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.graalvm.wasm.Linker.ResolutionDag.CallsiteSym;
+import org.graalvm.wasm.Linker.ResolutionDag.CodeEntrySym;
 import org.graalvm.wasm.Linker.ResolutionDag.DataSym;
+import org.graalvm.wasm.Linker.ResolutionDag.ElemSym;
+import org.graalvm.wasm.Linker.ResolutionDag.ExportFunctionSym;
+import org.graalvm.wasm.Linker.ResolutionDag.ExportGlobalSym;
 import org.graalvm.wasm.Linker.ResolutionDag.ExportMemorySym;
+import org.graalvm.wasm.Linker.ResolutionDag.ExportTableSym;
+import org.graalvm.wasm.Linker.ResolutionDag.ImportFunctionSym;
+import org.graalvm.wasm.Linker.ResolutionDag.ImportGlobalSym;
 import org.graalvm.wasm.Linker.ResolutionDag.ImportMemorySym;
+import org.graalvm.wasm.Linker.ResolutionDag.ImportTableSym;
+import org.graalvm.wasm.Linker.ResolutionDag.InitializeGlobalSym;
 import org.graalvm.wasm.Linker.ResolutionDag.Resolver;
 import org.graalvm.wasm.Linker.ResolutionDag.Sym;
 import org.graalvm.wasm.SymbolTable.FunctionType;
+import org.graalvm.wasm.TableRegistry.Table;
 import org.graalvm.wasm.constants.GlobalModifier;
 import org.graalvm.wasm.exception.WasmLinkerException;
 import org.graalvm.wasm.memory.WasmMemory;
-import org.graalvm.wasm.nodes.control.WasmBlockNode;
+import org.graalvm.wasm.nodes.control.WasmDirectCallNode;
 
 import com.oracle.truffle.api.CompilerDirectives;
 import com.oracle.truffle.api.interop.UnknownIdentifierException;
@@ -267,12 +267,12 @@ public class Linker {
         resolutionDag.resolveLater(new ExportFunctionSym(module.name(), exportedFunctionName), dependencies, NO_RESOLVE_ACTION);
     }
 
-    void resolveCallsite(WasmModule module, WasmBlockNode block, int controlTableOffset, WasmFunction function) {
+    void resolveCallsite(WasmModule module, WasmDirectCallNode call, int controlTableOffset, WasmFunction function) {
         final Runnable resolveAction = () -> {
-            //block.resolveCallNode(controlTableOffset);
+        	call.resolveCallNode(controlTableOffset);
         };
         final Sym[] dependencies = new Sym[]{function.isImported() ? new ImportFunctionSym(module.name(), function.importDescriptor()) : new CodeEntrySym(module.name(), function.index())};
-        resolutionDag.resolveLater(new CallsiteSym(module.name(), block.startOfset(), controlTableOffset), dependencies, resolveAction);
+        resolutionDag.resolveLater(new CallsiteSym(module.name(), 0, controlTableOffset), dependencies, resolveAction);
     }
 
     void resolveCodeEntry(WasmModule module, int functionIndex) {
